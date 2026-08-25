@@ -8,6 +8,24 @@
 
 ---
 
+## 2026-08-25 (밤) — collector 착수 · 마이그레이션 002
+
+| # | 결정 | 근거 | 단계 |
+| --- | --- | --- | --- |
+| 77 | **collector 는 호스트 systemd 서비스.** `127.0.0.1:8787` 에만 바인딩 | n8n 이 컨테이너가 아니라 호스트 프로세스(systemd)라 loopback 을 공유한다. 컨테이너 경계·게이트웨이 IP·방화벽 규칙이 전부 불필요해지고, **외부에서 도달 자체가 불가능**하다 — 설정 실수로 열릴 여지가 없는 게 제일 좋은 상태다 | 인프라 |
+| 78 | **`last_fetched_at` 은 `/ingest` 가 찍는다.** `/sources/due` 는 읽기 전용 | `/sources/due` 에서 찍으면 실패한 수집도 성공처럼 시각이 남아 다음 주기까지 재시도가 막히고, `empty_streak` 이 죽은 피드를 잡는 신호도 흐려진다. 쓰기가 한 곳으로 모여 트랜잭션 경계도 단순해진다 | 1단계 |
+| 79 | **정규화는 n8n 이, 저장·검증은 collector 가.** | 정규화가 이미 82건 실측으로 다듬어져 있다(url_key 의 utm 제거, 임팩트온 tz_offset). 지금 파이썬으로 옮기면 **검증된 코드를 근거 없이 다시 쓰는 것**이다. 크롤 어댑터를 만들 때 소스마다 갈리면 그때 옮긴다. 단 collector 는 받은 걸 그대로 믿지 않는다 — DB 소유자가 검증도 소유한다 | 1단계 |
+| 80 | **`ingest_requests` 테이블 신설 (마이그레이션 002, user_version 2)** | 재시도로 `empty_streak` 이 잘못 +1 되어 살아 있는 피드가 죽은 것으로 집계된다. `articles` 에 흔적을 남기는 방식은 기사 행이 없는 요청(빈 피드·전건 rejected·fetch 실패)을 못 기록하고, `sources.last_request_id` 는 그다음 요청 이후 도착한 재시도를 못 잡는다 | 1단계 |
+| 81 | **`payload_hash` 를 같이 저장.** 같은 `request_id` 에 다른 내용이면 409 | 워크플로를 고쳐 다시 돌리면 같은 키에 다른 내용이 온다. 저장된 옛 응답을 돌려주면 조용히 틀린 답이 된다 | 1단계 |
+| 82 | **`/ingest` 는 `BEGIN IMMEDIATE`** | SQLite 기본 `BEGIN` 은 deferred 라 첫 쓰기까지 잠금을 안 잡는다. 동시 도착한 같은 요청 둘이 나란히 "없음"으로 판정하고 둘 다 진행한다 | 1단계 |
+| 83 | **`fetch_ok` = HTTP 성공 **AND** 피드 파싱 성공** | 200 인데 XML 이 깨진 경우를 `true + articles=[]` 로 보내면 죽은 피드로 오인된다. 개별 기사 정규화 실패는 `true` + 그 기사만 rejected | 1단계 |
+| 84 | **`empty_streak` 규칙 4분기** — fetch 실패는 유지 · 신규 1건 이상(excluded 포함)은 0 · 전부 중복이거나 피드 0건은 +1 · **전건 rejected 는 유지** | 전건 rejected 를 신규 0건으로 세면 n8n 정규화 오류가 죽은 피드로 오인된다. `excluded` 로 저장된 기사도 신규다 — 발행일이 없어도 새 기사가 왔다는 건 피드가 살아 있다는 뜻이다 | 1단계 |
+| 85 | **`body_state` 는 collector 가 판정.** body 있으면 `full` · 없고 `body_mode='snippet'` 이고 snippet 있으면 `snippet_only` · 그 외 `pending`. 공백 문자열은 없는 것으로 본다 | n8n 이 보낸 값을 믿으면 본문이 비었는데 `full` 로 오는 걸 못 막는다 | 1단계 |
+| 86 | **`articles.press` 는 `sources.press` 를 정본으로.** 전달값이 다르면 경고 | 결정 #9 의 연장 — press 는 수집 시점의 사실이고, 그 사실의 출처는 `sources` 다 | 1단계 |
+| 87 | **응답 숫자의 포함 관계를 명시.** `received = inserted + duplicated + rejected` / `inserted = active + excluded`. n8n 에는 `active_ids` 를 준다 | 명시 안 하면 `excluded` 가 `inserted` 밖으로 읽혀 합이 안 맞는다. `excluded` 기사를 다음 단계로 넘기면 분류 콜을 낭비한다 | 1·3단계 |
+
+---
+
 ## 2026-08-25 (저녁) — 2차 리뷰 반영
 
 리뷰 지적 6건 전부 수용. #59(requeue)를 만 하루도 안 돼 뒤집었다.

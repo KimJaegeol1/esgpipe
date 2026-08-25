@@ -38,6 +38,7 @@ articles           수집한 사실                       저장
 article_analysis   프롬프트를 고쳐도 재사용된다        저장
 batches            배치의 경계와 기준시각             저장
 topics             최종 산출물                       저장
+ingest_requests    같은 요청을 두 번 처리하지 않기 위해  저장 (보존 기간 미정)
 이슈 클러스터        배치에서 만들고 배치에서 소비      저장 안 함 (아래)
 ```
 
@@ -360,6 +361,68 @@ WHERE a.batch_id IS NULL                 -- 미소비
 정확한 재현이 더 필요해지면 배치 시작 시 후보 id 를 스냅샷한다. 지금은 위
 조건으로 충분하고, 스냅샷은 저장할 테이블이 하나 더 생기는 비용이 있다.
 
+### ingest_requests
+
+**`POST /ingest` 가 같은 요청을 두 번 처리하지 않게 한다.**
+
+기사는 `url_key` UNIQUE 와 `INSERT OR IGNORE` 로 재시도에 안전하다. 문제는
+**`sources` 의 헬스 상태**다.
+
+```
+첫 요청     10건 삽입 → 응답이 유실됐다
+재시도      10건 전부 duplicated · inserted = 0
+           → empty_streak 이 잘못 +1 되고, 살아 있는 피드가 죽은 것으로 집계된다
+```
+
+`articles` 에 흔적을 남기는 방식으로는 안 된다 — **빈 피드·전건 rejected·
+fetch 실패처럼 기사 행이 아예 없는 요청**을 기록할 수 없다. `sources` 에
+`last_request_id` 하나만 두는 것도 안 된다 — 그다음 요청이 온 뒤에 도착한
+재시도를 못 잡는다.
+
+**`payload_hash` 가 같이 있는 이유.** `request_id` 는 n8n 의 `$execution.id`
+와 `source_id` 조합인데, 워크플로를 고쳐 다시 돌리면 같은 키에 다른 내용이
+올 수 있다. 그때 저장된 옛 응답을 돌려주면 **조용히 틀린 답**이 된다.
+
+```
+request_id 같음 + hash 같음   저장된 응답 그대로 반환
+request_id 같음 + hash 다름   409 idempotency_key_reused
+```
+
+### 트랜잭션 순서가 테이블보다 중요하다
+
+```
+요청 형식 검증 · payload_hash 계산
+
+BEGIN IMMEDIATE          ← DEFERRED 면 첫 쓰기까지 잠금을 안 잡는다
+  request_id 조회
+    있음 → hash 확인 → 같으면 저장 응답 반환 / 다르면 409
+    없음 → 기사 INSERT
+           sources 헬스 갱신
+           응답 JSON 생성
+           ingest_requests INSERT
+COMMIT
+
+응답 반환
+```
+
+**`BEGIN IMMEDIATE` 여야 한다.** SQLite 의 기본 `BEGIN` 은 deferred 라 첫
+쓰기 시점에야 잠금을 잡는다. 그러면 동시에 도착한 같은 요청 둘이 나란히
+"없음"으로 판정하고 둘 다 진행한다.
+
+이 순서면 세 경우가 다 닫힌다.
+
+```
+처리 중 실패        전부 롤백. 재시도가 처음부터 처리한다
+커밋 후 응답 유실    재시도가 저장된 응답을 받는다
+중복 요청           기사도 empty_streak 도 건드리지 않는다
+```
+
+**보존 기간은 아직 안 정했다.** 지우는 순간 그 요청의 멱등성도 사라지므로
+근거 없이 짧게 잡지 않는다. `created_at` 인덱스만 만들어두고, n8n 의 실제
+재시도 범위를 본 뒤 정한다.
+
+---
+
 ### topics
 
 **완성된 소재만 담는다.** 6단계가 실패한 이슈는 저장하지 않는다. 그래서
@@ -405,7 +468,7 @@ can_cite 는 정책이라 조인).
 
 ```sql
 SELECT t.id FROM topics t, json_each(t.article_ids) j
-WHERE json_extract(j.value, '$.id') = 12;
+WHERE j.value ->> 'id' = 12;
 ```
 
 아파지면 `topic_articles` 로 분리한다. JSON 을 읽어 옮기는 마이그레이션 한
@@ -466,7 +529,7 @@ LLM 에게 "이게 얼마나 핫한가"를 물으면 숫자를 지어낸다. 셀
 | `issues` | 지금은 `이슈 ≡ topics 1행`. 7단계 임계를 켜면 되살아난다 |
 | `topic_articles` | 지금 규모에선 JSON 으로 충분. 역조회가 아파지면 분리 |
 | `keywords` 사전 | 검색량 공급원이 없다. **없는 기능을 위한 테이블** |
-| `events` | 상태 이력을 재생할 계획이 없다. `state`+`state_tags`+`decided_at` 으로 충분 |
+| `events` | 상태 이력을 재생할 계획이 없다. `ingest_requests` 는 이력이 아니라 멱등성 상태다 — `state`+`state_tags`+`decided_at` 으로 충분 |
 | `services` · `exclude_keywords` | subjects 와 설정으로 흡수 |
 | `posts` 발행 이력 | 나중에. 중복 판정은 `used` 소재까지만 본다 |
 | `schema_version` 테이블 | `PRAGMA user_version` 으로 대체 |
