@@ -10,7 +10,9 @@
 import hashlib
 from pathlib import Path
 
+import prompt_validation
 from config import get_settings, get_tuning
+from db import connect
 
 # 프롬프트 이름 → 디렉터리. 버전은 tuning.yaml 이 정한다
 _DIRS = {
@@ -40,8 +42,22 @@ def load(name: str) -> dict:
         if not f.exists():
             raise FileNotFoundError(f"{f} 가 없다")
         b = f.read_bytes()
-        h.update(b)                       # UTF-8 바이트를 고정된 순서로
+        # 파일 경계를 해시에 넣는다. 바이트만 이어 붙이면
+        # system="ab"+user="c" 와 system="a"+user="bc" 가 같은 해시가 된다
+        h.update(part.encode("utf-8"))
+        h.update(b"\0")
+        h.update(len(b).to_bytes(8, "big"))
+        h.update(b)
         texts[part] = b.decode("utf-8")
+
+    # subject 목록 대조는 **요청마다** 한다. 캐시를 안 걸었으므로 서비스가
+    # 뜬 뒤 파일이 바뀌면 시작 검증만으로는 못 잡는다. DB 조회는 워크플로
+    # 실행당 한 번이라 부담이 없다
+    if name == "classify":
+        with connect() as c:
+            db_subjects = {r["id"]: r["name"]
+                           for r in c.execute("SELECT id, name FROM subjects")}
+        prompt_validation.check(texts["system.md"], db_subjects)
 
     return {
         "name": name,

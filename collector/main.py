@@ -10,6 +10,7 @@ import classify
 import db
 import ingest
 import prompts
+from prompt_validation import SubjectMismatch
 import sources
 from models import ClassifyIn, IngestIn
 import config
@@ -89,6 +90,10 @@ def get_prompt(name: str):
         return prompts.load(name)
     except KeyError as e:
         raise HTTPException(404, {"error": "unknown_prompt", "detail": str(e)})
+    except SubjectMismatch as e:
+        # LLM 호출 전에 막는다. 어긋난 채로 돌면 82콜을 다 쓰고 전부 422 다
+        raise HTTPException(500, {"error": "prompt_subject_mismatch",
+                                  "detail": str(e)})
     except (FileNotFoundError, OSError) as e:
         raise HTTPException(500, {"error": "prompt_unavailable", "detail": str(e)})
 
