@@ -3,10 +3,12 @@
 n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므로
 외부에서는 도달할 수 없다 (n8n 도 같은 호스트의 프로세스다).
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
 import db
+import ingest
 import sources
+from models import IngestIn
 from config import get_settings, get_tuning
 
 app = FastAPI(title="esgpipe collector", version="0.1.0")
@@ -37,3 +39,16 @@ def sources_due():
     """지금 폴링할 소스. 읽기 전용 — last_fetched_at 은 /ingest 가 찍는다."""
     rows = sources.due()
     return {"count": len(rows), "sources": rows}
+
+
+@app.post("/ingest")
+def post_ingest(req: IngestIn):
+    """수집 결과 저장. 같은 request_id 는 두 번 처리하지 않는다."""
+    try:
+        return ingest.handle(req)
+    except ingest.Conflict:
+        # 저장된 옛 응답을 돌려주면 조용히 틀린 답이 된다
+        raise HTTPException(409, {"error": "idempotency_key_reused",
+                                  "request_id": req.request_id})
+    except ValueError as e:
+        raise HTTPException(400, {"error": str(e)})
