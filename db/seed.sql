@@ -60,5 +60,5 @@ VALUES
 
     (13, 'Carbon Brief', 'Carbon Brief', 'rss',
      'https://www.carbonbrief.org/feed/',            'rss_content', NULL,
-     '{"rss":{"content_tag":"content:encoded"}}',
+     '{"rss":{"content_tag":"content:encoded","drop_classes":["g-button","print-share","article-contents"]}}',
      'none', 'overseas',  1, 1, 'en', 1440, 1, 0, '2026-08-20T00:00:00Z');
