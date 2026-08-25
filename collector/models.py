@@ -58,3 +58,17 @@ class IngestIn(BaseModel):
     # 50건 중 1건 때문에 49건이 같이 버려지고 다음 폴링에서 또 반복된다.
     # 개별 검증은 ingest 가 기사 단위로 하고 rejected 로 센다.
     articles: list[dict] = []
+
+
+class ClassifyIn(BaseModel):
+    """3단계 분류 결과. 기사 한 건이 한 요청이다 —
+    묶으면 한 건의 오류를 HTTP 상태로 표현할 수 없다."""
+    article_id: int
+    # digest 는 게이트가 AI 호출 **전에** 판정한 것이고,
+    # subject_id=null 은 AI 가 의도적으로 낸 출력이다. 원인이 다르니 나눈다
+    gate_result: Literal["pass", "digest"]
+    subject_id: int | None = None
+    # 정본은 subjects 테이블이다. 이름은 검증용으로만 받는다 —
+    # 불일치 로그가 경계표에 뭘 추가할지 알려주는 재료다
+    subject_name: str | None = None
+    reason: str | None = None

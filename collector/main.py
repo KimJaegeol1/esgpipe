@@ -6,10 +6,11 @@ n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므�
 from fastapi import FastAPI, HTTPException, Query
 
 import articles
+import classify
 import db
 import ingest
 import sources
-from models import IngestIn
+from models import ClassifyIn, IngestIn
 import config
 from config import get_settings, get_tuning
 
@@ -64,3 +65,16 @@ def articles_pending_classify(limit: int = Query(500, ge=1, le=500)):
     """3단계 분류 대상. 읽기 전용."""
     rows = articles.pending_classify(limit)
     return {"count": len(rows), "articles": rows}
+
+
+@app.post("/articles/classify")
+def post_classify(req: ClassifyIn):
+    """분류 결과 저장. 기사 한 건이 한 요청이다."""
+    try:
+        return classify.handle(req)
+    except classify.Conflict as e:
+        raise HTTPException(409, {"error": "result_conflict",
+                                  "article_id": req.article_id, "detail": str(e)})
+    except classify.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_classification",
+                                  "article_id": req.article_id, "detail": str(e)})
