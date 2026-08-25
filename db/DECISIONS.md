@@ -8,6 +8,33 @@
 
 ---
 
+## 2026-08-25 (밤, 2) — /ingest 구현 중 뒤집은 것
+
+| # | 결정 | 근거 | 단계 |
+| --- | --- | --- | --- |
+| 88 | **기사를 요청 모델(`ArticleIn`)이 아니라 `dict` 로 받는다.** 개별 검증은 `ingest` 안에서 기사 단위로 하고 `rejected` 로 센다 | 모델로 받으면 FastAPI 가 **요청 파싱 단계에서** 검증해, 한 건만 어긋나도 요청 전체가 422 가 된다. 임팩트온 50건 중 1건 때문에 49건이 같이 버려지고 **다음 폴링에서 또 반복된다.** #87 이 `rejected` 를 계약에 넣어놓고 정작 도달할 수 없는 코드를 만들었다 | 1단계 |
+| 89 | **`reject_counts` 에 필드와 사유를 담는다** (`url_key:value_error` 형태) | 숫자만 있으면 n8n 정규화의 **어디를** 고쳐야 할지 모른다. `empty_streak` 을 원인별로 가른 것과 같은 이유 — 다른 원인이 같은 신호를 내면 안 된다 | 1단계 |
+| 90 | **`received` 는 `req.articles` 의 길이 그대로.** rejected 를 더하지 않는다 | #88 로 rejected 된 기사도 `req.articles` 안에 들어오게 됐다. 계약(`received = inserted + duplicated + rejected`)은 그대로 성립한다 | 1단계 |
+
+### 검증한 것 (2026-08-25)
+
+`/ingest` 의 모든 분기를 실제 호출로 확인했다.
+
+| 분기 | 결과 |
+| --- | --- |
+| 멱등 히트 | 저장된 응답 반환 · `last_ok_at` 도 안 움직인다 · articles·requests 개수 불변 |
+| `payload_hash` 불일치 | HTTP 409 `idempotency_key_reused` |
+| `fetch_ok=false` | streak 유지 · `last_error='timeout'` |
+| 빈 피드 ×2 | streak 0 → 1 → 2 |
+| 신규 1건 | streak 0 리셋 · `last_error` NULL 로 정리 |
+| 전건 rejected | **streak 2 유지** · `last_error='validation_rejected:2'` |
+| 정상 1 + 깨진 2 혼합 | HTTP 200 · `received 3 · inserted 1 · rejected 2` — 정상 건이 살아남는다 |
+| `published_at` 없음 | `state='excluded'` 로 **저장** · `active_ids` 에는 안 들어감 |
+| `body_state` 판정 | 본문 있음 → `full` · 없음 → `pending` |
+| `press` | n8n 이 안 보내도 `sources.press` 에서 채운다 |
+
+---
+
 ## 2026-08-25 (밤) — collector 착수 · 마이그레이션 002
 
 | # | 결정 | 근거 | 단계 |
@@ -176,6 +203,7 @@
 | `requeue` 를 명시적 동작으로 정의 (#59) | 08-25 | MVP 에서 제외. 재분할 경로 설계 시 재검토 | 08-25 (#67) |
 | 종료 조건 = `business_relevance` 최솟값 0.2 미만 (#66) | 08-25 | `service_mismatch` 거절분 vs `kept` 상대 비교 | 08-25 (#74) |
 | `state_tags` 한글 어휘 | 08-19 | 영문 스네이크 + `topic_reject_tags` 정본 | 08-25 (#72) |
+| 기사를 `ArticleIn` 모델로 받는다 (#87 의 전제) | 08-25 | `dict` 로 받고 ingest 안에서 기사 단위 검증 | 08-25 (#88) |
 | `articles.published_at` NOT NULL | 08-19 | `CHECK (published_at IS NOT NULL OR state='excluded')` | 08-22 |
 | `change_type` 6종 | 08-19 | 3종 | 08-21 (#24) |
 | `sources.content_tag` 칼럼 | 08-22 | `config.rss.content_tag` | 08-25 (#53) |
