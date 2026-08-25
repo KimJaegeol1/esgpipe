@@ -53,4 +53,8 @@ class IngestIn(BaseModel):
     fetch_ok: bool
     fetch_error: str | None = None
 
-    articles: list[ArticleIn] = []
+    # ArticleIn 이 아니라 dict 로 받는다. 모델로 받으면 FastAPI 가 요청
+    # 파싱 단계에서 검증하고, 한 건만 깨져도 요청 전체가 422 가 된다 —
+    # 50건 중 1건 때문에 49건이 같이 버려지고 다음 폴링에서 또 반복된다.
+    # 개별 검증은 ingest 가 기사 단위로 하고 rejected 로 센다.
+    articles: list[dict] = []

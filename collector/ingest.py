@@ -7,7 +7,10 @@ import hashlib
 import json
 from datetime import datetime, timezone
 
+from pydantic import ValidationError
+
 from db import connect
+from models import ArticleIn
 
 
 class Conflict(Exception):
@@ -86,7 +89,20 @@ def _process(c, req, src, now) -> dict:
     def reject(code: str):
         reject_counts[code] = reject_counts.get(code, 0) + 1
 
-    for a in req.articles:
+    for raw in req.articles:
+        # 기사 단위 검증. 깨진 한 건이 나머지를 못 버리게 한다
+        try:
+            a = ArticleIn(**raw)
+        except ValidationError as e:
+            # 어느 필드가 왜 걸렸는지 — 프롬프트가 아니라 정규화를 고칠 재료다
+            first = e.errors()[0]
+            loc = ".".join(str(x) for x in first["loc"]) or "?"
+            reject(f"{loc}:{first['type']}")
+            continue
+        except TypeError:
+            reject("not_an_object")
+            continue
+
         # press 는 수집 시점의 사실이고, 그 사실의 출처는 sources 다
         if a.press and a.press != src["press"]:
             warnings.append(f"press 불일치: 받은 '{a.press}' · 저장 '{src['press']}'")
@@ -122,7 +138,7 @@ def _process(c, req, src, now) -> dict:
     return {
         "request_id": req.request_id,
         "source_id": src["id"],
-        "received": len(req.articles) + rejected,
+        "received": len(req.articles),   # rejected 를 포함한다
         "inserted": inserted,
         "active": len(active_ids),
         "active_ids": active_ids,
@@ -158,7 +174,7 @@ def _update_source(c, req, src, inserted: int, rejected: int, now: str) -> int:
             " last_error = NULL, empty_streak = 0 WHERE id = ?",
             (req.fetched_at, now, src["id"]),
         )
-    elif rejected > 0 and len(req.articles) == 0:
+    elif rejected > 0:
         # 전건 rejected — n8n 정규화 오류다. 죽은 피드로 오인하면 안 된다
         c.execute(
             "UPDATE sources SET last_fetched_at = ?, last_error = ? WHERE id = ?",
