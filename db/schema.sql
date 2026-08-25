@@ -1,6 +1,6 @@
 -- ============================================================================
 -- ESG 블로그 파이프라인 — 스키마 정본
--- SQLite · user_version = 2 · 2026-08-25 (rev 4)
+-- SQLite · user_version = 3 · 2026-08-25 (rev 5)
 --
 -- 이 파일이 스키마의 유일한 정본이다. topics 는 **완성된 소재만** 담는다 —
 -- 생성 실패분은 저장하지 않으므로 점수·열도가 전부 NOT NULL 이다.
@@ -98,7 +98,10 @@ CREATE TABLE articles (
     state               TEXT    NOT NULL DEFAULT 'active'
                                 CHECK (state IN ('active','excluded')),
     state_reason        TEXT    CHECK (state_reason IS NULL OR state_reason IN (
+                                    -- 3단계
                                     'subject_mapping_failed',
+                                    'digest',
+                                    -- 1단계 날짜 사유
                                     'no_date','timezone_unknown','unparsable_date',
                                     'manual_service_mismatch','manual_already_covered',
                                     'exclude_keyword','non_analyzable','out_of_domain'
@@ -111,7 +114,10 @@ CREATE TABLE articles (
     -- 되돌리는 경로(requeue·재분할)는 아직 없다. 생기면 ALTER 로 컬럼을 붙인다
 
     CHECK (published_at IS NOT NULL OR state = 'excluded'),
-    CHECK ((batch_id IS NULL) = (consume_reason IS NULL))
+    CHECK ((batch_id IS NULL) = (consume_reason IS NULL)),
+    -- digest 는 확정 판정이라 active 로 남을 수 없다. 어휘만 추가하고
+    -- 조합을 안 막으면 active + digest 가 조용히 생긴다
+    CHECK (state_reason != 'digest' OR state = 'excluded')
 );
 
 -- ============================================================================
@@ -259,4 +265,4 @@ CREATE INDEX idx_topics_batch           ON topics(batch_id);
 -- 지우는 순간 그 요청의 멱등성도 사라진다
 CREATE INDEX idx_ingest_requests_created ON ingest_requests(created_at);
 
-PRAGMA user_version = 2;
+PRAGMA user_version = 3;

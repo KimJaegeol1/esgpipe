@@ -88,5 +88,12 @@ PRAGMA foreign_key_check;
 ```
 
 비싸다. 그래서 **바뀔 게 확실한 값은 애초에 CHECK 으로 박지 않는다.**
+
+> **함정: RENAME 뒤에는 테이블 이름에 따옴표가 붙는다.**
+> `ALTER TABLE t_new RENAME TO t` 를 하면 `sqlite_master` 에 저장되는 DDL 이
+> `CREATE TABLE "t" (...)` 가 된다. `schema.sql` 로 새로 만든 DB 와 텍스트
+> 비교를 하면 **이 따옴표 하나 때문에 불일치로 나온다.** 구조는 같다.
+> 003 적용 때 실제로 겪었다 — 비교 스크립트가 이걸 걸러내게 하거나,
+> 차이가 따옴표뿐인지 눈으로 확인하면 된다.
 `final_score` 의 계산식(지금은 `= business_relevance`)이나 `kind × body_mode`
 조합 검증이 DDL 이 아니라 collector 에 있는 이유가 이것이다.
