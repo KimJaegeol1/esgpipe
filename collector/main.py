@@ -6,6 +6,7 @@ n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므�
 from fastapi import FastAPI
 
 import db
+import sources
 from config import get_settings, get_tuning
 
 app = FastAPI(title="esgpipe collector", version="0.1.0")
@@ -29,3 +30,10 @@ def health():
             "prompt_versions": t["prompt_versions"],
         },
     }
+
+
+@app.get("/sources/due")
+def sources_due():
+    """지금 폴링할 소스. 읽기 전용 — last_fetched_at 은 /ingest 가 찍는다."""
+    rows = sources.due()
+    return {"count": len(rows), "sources": rows}
