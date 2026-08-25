@@ -51,6 +51,9 @@ def validate() -> None:
         ("window.issue_days",              ("window", "issue_days")),
         ("validation.issue_signal_max_chars", ("validation", "issue_signal_max_chars")),
     ]
+    g = t.get("gate", {}).get("digest_tags")
+    if not isinstance(g, list) or not all(isinstance(x, str) and x.strip() for x in g):
+        raise RuntimeError("tuning.yaml 의 gate.digest_tags 가 문자열 목록이 아니다")
     for label, path in checks:
         v = t
         for k in path:

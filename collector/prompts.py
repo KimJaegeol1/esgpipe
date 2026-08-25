@@ -68,4 +68,9 @@ def load(name: str) -> dict:
         "sha256": h.hexdigest(),
         "system_prompt": texts["system.md"],
         "user_template": texts["user.md"],
+        # 실행 설정을 같이 싣는다. n8n Code 노드에 배열을 다시 쓰면
+        # 정본이 둘이 된다 — 워크플로에서 프롬프트 복사본을 없앤 이유와
+        # 같은 문제다. **해시에는 넣지 않는다**: 프롬프트 내용이 아니라
+        # 실행 설정이라, 이게 바뀌었다고 프롬프트 버전이 바뀐 건 아니다
+        "gate": get_tuning().get("gate", {}) if name == "classify" else {},
     }
