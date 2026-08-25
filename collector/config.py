@@ -40,3 +40,22 @@ def get_tuning() -> dict:
     """tuning.yaml 을 읽는다. 값의 정본은 이 파일이다."""
     with open(get_settings().tuning_path, encoding="utf-8") as f:
         return yaml.safe_load(f)
+
+
+def validate() -> None:
+    """설정이 틀린 걸 요청 시점이 아니라 시작 시점에 알아야 한다.
+    classification 키가 없어도 systemd 는 active 였고 엔드포인트만 500 을 냈다."""
+    t = get_tuning()
+    checks = [
+        ("classification.input_max_chars", ("classification", "input_max_chars")),
+        ("window.issue_days",              ("window", "issue_days")),
+        ("validation.issue_signal_max_chars", ("validation", "issue_signal_max_chars")),
+    ]
+    for label, path in checks:
+        v = t
+        for k in path:
+            if not isinstance(v, dict) or k not in v:
+                raise RuntimeError(f"tuning.yaml 에 {label} 이 없다")
+            v = v[k]
+        if not isinstance(v, int) or v <= 0:
+            raise RuntimeError(f"tuning.yaml 의 {label} 이 양의 정수가 아니다: {v!r}")

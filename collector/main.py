@@ -3,15 +3,20 @@
 n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므로
 외부에서는 도달할 수 없다 (n8n 도 같은 호스트의 프로세스다).
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 
+import articles
 import db
 import ingest
 import sources
 from models import IngestIn
+import config
 from config import get_settings, get_tuning
 
 app = FastAPI(title="esgpipe collector", version="0.1.0")
+
+# 설정 검증은 여기서 한다. 늦게 터지면 systemd 는 active 인데 요청만 실패한다
+config.validate()
 
 
 @app.get("/health")
@@ -52,3 +57,10 @@ def post_ingest(req: IngestIn):
                                   "request_id": req.request_id})
     except ValueError as e:
         raise HTTPException(400, {"error": str(e)})
+
+
+@app.get("/articles/pending-classify")
+def articles_pending_classify(limit: int = Query(500, ge=1, le=500)):
+    """3단계 분류 대상. 읽기 전용."""
+    rows = articles.pending_classify(limit)
+    return {"count": len(rows), "articles": rows}

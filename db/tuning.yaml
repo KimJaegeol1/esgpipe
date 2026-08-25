@@ -30,6 +30,14 @@ polling:
   # 연속 신규 0건이 이 횟수를 넘으면 알림
   empty_streak_alert: 20
 
+classification:
+  # 3단계 분류 입력 상한. body 앞부분을 쓰고 body 가 없으면 snippet 으로 대체.
+  # snippet 만 쓰면 소스별 정보량이 106자~1,898자로 18배 차이 난다(실측) —
+  # 환경미디어는 description 에 전문이 오고, ESG Today 는 description 이
+  # 대부분 <img> 태그라 벗기면 106자만 남는다.
+  # 600 은 임팩트온(300)·Carbon Brief(240) 요약 길이 위, 전문보다 충분히 짧다
+  input_max_chars: 600
+
 validation:
   # 4단계 검증기. 길이는 공백 포함, 양끝만 trim 후 센다
   issue_signal_max_chars: 30       # 초과 → NULL. repair 안 함
