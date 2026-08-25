@@ -9,8 +9,13 @@
 # ============================================================================
 
 window:
-  # 소재 배치 주기. 크론은 collector 설정에서 이 값과 맞춘다
-  batch_cron: "0 0 * * MON"        # UTC 월요일 00:00
+  # 크론은 KST 로 쓴다. n8n 워크플로 타임존을 cron_timezone 과 맞춘다.
+  # 저장되는 시각(as_of·published_at)은 여전히 UTC 다 — 크론은 사람이
+  # 관리하는 스케줄이고 데이터의 시각과는 성격이 다르다.
+  # KST 04:00 을 UTC 로 쓰면 "일요일 19:00" 이 되어 요일이 밀린다
+  cron_timezone: "Asia/Seoul"
+  collect_cron: "0 2 * * *"        # 매일 02:00 KST — 수집·본문·분류·분석
+  batch_cron:   "0 4 * * MON"      # 월요일 04:00 KST — 클러스터·소재
   # 이슈 탐지 창(일). window_from = as_of - issue_days, window_to = as_of
   issue_days: 7
   # 소재 stale 전이(일). created_at 기준, state='new' 인 것만
