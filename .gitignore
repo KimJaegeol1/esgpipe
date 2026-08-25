@@ -1,0 +1,32 @@
+# ── DB — 서버에만 산다. schema.sql + seed.sql 로 재생성된다
+db/*.db
+db/*.db-wal
+db/*.db-shm
+db/*.sqlite3
+db/backup/
+
+# ── 비밀
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# ── 파이썬
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# ── 운영 산출물
+logs/
+*.log
+tmp/
+*.bak
+
+# ── 에디터·OS
+.vscode/
+.idea/
+.DS_Store
