@@ -9,6 +9,7 @@ import articles
 import classify
 import db
 import ingest
+import prompts
 import sources
 from models import ClassifyIn, IngestIn
 import config
@@ -78,3 +79,16 @@ def post_classify(req: ClassifyIn):
     except classify.Invalid as e:
         raise HTTPException(422, {"error": "invalid_classification",
                                   "article_id": req.article_id, "detail": str(e)})
+
+
+@app.get("/prompts/{name}")
+def get_prompt(name: str):
+    """실행 시작에 한 번만 가져간다. 기사마다 가져오면 실행 도중 파일이
+    바뀔 때 같은 배치가 서로 다른 프롬프트를 쓴다."""
+    try:
+        return prompts.load(name)
+    except KeyError as e:
+        raise HTTPException(404, {"error": "unknown_prompt", "detail": str(e)})
+    except (FileNotFoundError, OSError) as e:
+        raise HTTPException(500, {"error": "prompt_unavailable", "detail": str(e)})
+
