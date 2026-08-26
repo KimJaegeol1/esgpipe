@@ -1,6 +1,6 @@
 -- ============================================================================
 -- ESG 블로그 파이프라인 — 스키마 정본
--- SQLite · user_version = 3 · 2026-08-25 (rev 5)
+-- SQLite · user_version = 4 · 2026-08-26 (rev 6)
 --
 -- 이 파일이 스키마의 유일한 정본이다. topics 는 **완성된 소재만** 담는다 —
 -- 생성 실패분은 저장하지 않으므로 점수·열도가 전부 NOT NULL 이다.
@@ -163,6 +163,17 @@ CREATE TABLE batches (
     created_at    TEXT    NOT NULL,
     finished_at   TEXT,
 
+    -- 배치 후보를 고정한다. NULL 이면 아직 안 뽑았다.
+    -- [{"article_id": 83, "subject_id": 3}, ...]
+    --
+    -- /complete 의 검증 기준값이라 재계산하면 안 된다 — 그 사이 사람이
+    -- 기사를 excluded 로 내리면 "누락"으로 422 가 나고, 원인이 LLM 이
+    -- 아니라 사람인데 안 보인다. subject_id 도 담는 건 기사 집합만
+    -- 고정하면 subject 검증만 현재 DB 값을 보게 되기 때문이다(#51·#121)
+    candidate_snapshot TEXT CHECK (candidate_snapshot IS NULL
+                                   OR (json_valid(candidate_snapshot)
+                                       AND json_type(candidate_snapshot) = 'array')),
+
     CHECK (window_from < window_to)
 );
 
@@ -265,4 +276,4 @@ CREATE INDEX idx_topics_batch           ON topics(batch_id);
 -- 지우는 순간 그 요청의 멱등성도 사라진다
 CREATE INDEX idx_ingest_requests_created ON ingest_requests(created_at);
 
-PRAGMA user_version = 3;
+PRAGMA user_version = 4;
