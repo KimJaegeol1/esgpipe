@@ -91,3 +91,27 @@ class AnalyzeIn(BaseModel):
     attempts: int = Field(default=1, ge=1)
     model: str | None = None
     prompt_version: int = Field(ge=1)
+
+
+class TopicIn(BaseModel):
+    """소재 하나. /batches/{id}/complete 가 배열로 받는다."""
+    subject_id: int
+    issue_signal: str
+    title: str
+    summary: str
+    # LLM 은 "a98" 형태로 낸다(프롬프트 v3 예시). collector 가 되돌린다 —
+    # 형식이 어긋나면 그 자체가 검증 신호다
+    article_ids: list[str | int]
+    keywords: list[str] = []
+    cluster_reason: str | None = None
+    business_relevance: float
+    rationale: str
+
+
+class CompleteIn(BaseModel):
+    """전부 아니면 전무. 부분 저장하지 않는다."""
+    topics: list[TopicIn] = []
+
+
+class AbortIn(BaseModel):
+    note: str | None = None

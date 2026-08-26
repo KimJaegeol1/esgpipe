@@ -7,13 +7,14 @@ from fastapi import FastAPI, HTTPException, Query
 
 import analyze
 import articles
+import batches
 import classify
 import db
 import ingest
 import prompts
 from prompt_validation import SubjectMismatch
 import sources
-from models import AnalyzeIn, ClassifyIn, IngestIn
+from models import AbortIn, AnalyzeIn, ClassifyIn, CompleteIn, IngestIn
 import config
 from config import get_settings, get_tuning
 
@@ -115,3 +116,45 @@ def post_analyze(req: AnalyzeIn):
     except analyze.Invalid as e:
         raise HTTPException(422, {"error": "invalid_analysis",
                                   "article_id": req.article_id, "detail": str(e)})
+
+
+@app.post("/batches/start")
+def batches_start():
+    """running 이 있으면 그걸 반환한다 — 같은 as_of 로 재실행하기 위해서다."""
+    return batches.start()
+
+
+@app.get("/batches/{batch_id}/candidates")
+def batches_candidates(batch_id: int):
+    """후보를 고정한다. 스냅샷이 있으면 재조회하지 않는다."""
+    try:
+        return batches.candidates(batch_id)
+    except batches.Conflict as e:
+        raise HTTPException(409, {"error": "batch_state_conflict", "detail": str(e)})
+    except batches.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_batch", "detail": str(e)})
+
+
+@app.post("/batches/{batch_id}/complete")
+def batches_complete(batch_id: int, req: CompleteIn):
+    """검증 5종을 전부 통과해야 저장한다. 하나라도 실패하면 DB 쓰기 0."""
+    try:
+        r = batches.complete(batch_id, [t.model_dump() for t in req.topics])
+    except batches.Conflict as e:
+        raise HTTPException(409, {"error": "batch_state_conflict", "detail": str(e)})
+    except batches.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_batch", "detail": str(e)})
+    if not r.get("ok"):
+        raise HTTPException(422, r)
+    return r
+
+
+@app.post("/batches/{batch_id}/abort")
+def batches_abort(batch_id: int, req: AbortIn):
+    """사람이 재현성을 포기하기로 결정했다. 프로세스 장애와 다르다."""
+    try:
+        return batches.abort(batch_id, req.note)
+    except batches.Conflict as e:
+        raise HTTPException(409, {"error": "batch_state_conflict", "detail": str(e)})
+    except batches.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_batch", "detail": str(e)})

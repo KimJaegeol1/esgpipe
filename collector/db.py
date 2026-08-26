@@ -12,7 +12,12 @@ from config import get_settings
 @contextmanager
 def connect():
     """읽기·쓰기 공용. 나갈 때 반드시 닫는다."""
-    conn = sqlite3.connect(get_settings().db_path, timeout=10.0)
+    # isolation_level=None 이 **필수다.** 기본값이면 파이썬 sqlite3 가
+    # 암묵 트랜잭션을 자동으로 열고 닫는다 — 우리가 BEGIN IMMEDIATE 를
+    # 실행해도 이미 열려 있어 무시되고, COMMIT 이 엉뚱하게 동작한다.
+    # 실제로 /batches/start 의 INSERT 가 커밋되지 않고 사라졌다.
+    conn = sqlite3.connect(get_settings().db_path, timeout=10.0,
+                           isolation_level=None)
     try:
         # 연결마다 켜야 한다. 파일에 안 남는다
         conn.execute("PRAGMA foreign_keys = ON")
