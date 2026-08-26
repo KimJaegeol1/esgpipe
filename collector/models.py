@@ -115,3 +115,11 @@ class CompleteIn(BaseModel):
 
 class AbortIn(BaseModel):
     note: str | None = None
+
+
+class TopicPatchIn(BaseModel):
+    """소재 판정. 안 보낸 필드는 안 건드린다."""
+    state: Literal["new", "kept", "rejected", "used", "stale"] | None = None
+    # 어휘는 tuning.yaml 의 topic_reject_tags 가 정본이다
+    state_tags: list[str] | None = None
+    state_note: str | None = None

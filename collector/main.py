@@ -1,7 +1,9 @@
-"""collector — esg.db 의 유일한 소유자.
+"""esgpipe collector — esg.db 의 유일한 소유자.
 
 n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므로
 외부에서는 도달할 수 없다 (n8n 도 같은 호스트의 프로세스다).
+
+라우트만 둔다. 판단과 저장은 각 모듈에 있다.
 """
 from fastapi import FastAPI, HTTPException, Query
 
@@ -9,14 +11,16 @@ import analyze
 import articles
 import batches
 import classify
+import config
 import db
 import ingest
 import prompts
-from prompt_validation import SubjectMismatch
 import sources
-from models import AbortIn, AnalyzeIn, ClassifyIn, CompleteIn, IngestIn
-import config
+import topics
 from config import get_settings, get_tuning
+from models import (AbortIn, AnalyzeIn, ClassifyIn, CompleteIn, IngestIn,
+                    TopicPatchIn)
+from prompt_validation import SubjectMismatch
 
 app = FastAPI(title="esgpipe collector", version="0.1.0")
 
@@ -24,6 +28,7 @@ app = FastAPI(title="esgpipe collector", version="0.1.0")
 config.validate()
 
 
+# ── 상태 ────────────────────────────────────────────────────────────────
 @app.get("/health")
 def health():
     """DB 와 설정이 우리가 아는 모양인지 한 번에 본다."""
@@ -32,18 +37,34 @@ def health():
     return {
         "ok": True,
         "db": db.health(),
-        "paths": {
-            "db": str(s.db_path),
-            "tuning": str(s.tuning_path),
-        },
+        "paths": {"db": str(s.db_path), "tuning": str(s.tuning_path)},
         "tuning": {
             "issue_days": t["window"]["issue_days"],
+            "collect_cron": t["window"].get("collect_cron"),
             "batch_cron": t["window"]["batch_cron"],
             "prompt_versions": t["prompt_versions"],
         },
     }
 
 
+# ── 프롬프트 ─────────────────────────────────────────────────────────────
+@app.get("/prompts/{name}")
+def get_prompt(name: str):
+    """실행 시작에 한 번만 가져간다. 기사마다 가져오면 실행 도중 파일이
+    바뀔 때 같은 배치가 서로 다른 프롬프트를 쓴다."""
+    try:
+        return prompts.load(name)
+    except KeyError as e:
+        raise HTTPException(404, {"error": "unknown_prompt", "detail": str(e)})
+    except SubjectMismatch as e:
+        # LLM 호출 전에 막는다. 어긋난 채로 돌면 82콜을 다 쓰고 전부 422 다
+        raise HTTPException(500, {"error": "prompt_subject_mismatch",
+                                  "detail": str(e)})
+    except (FileNotFoundError, OSError) as e:
+        raise HTTPException(500, {"error": "prompt_unavailable", "detail": str(e)})
+
+
+# ── 1~2단계 수집 ─────────────────────────────────────────────────────────
 @app.get("/sources/due")
 def sources_due():
     """지금 폴링할 소스. 읽기 전용 — last_fetched_at 은 /ingest 가 찍는다."""
@@ -64,6 +85,7 @@ def post_ingest(req: IngestIn):
         raise HTTPException(400, {"error": str(e)})
 
 
+# ── 3단계 분류 ───────────────────────────────────────────────────────────
 @app.get("/articles/pending-classify")
 def articles_pending_classify(limit: int = Query(500, ge=1, le=500)):
     """3단계 분류 대상. 읽기 전용."""
@@ -84,23 +106,7 @@ def post_classify(req: ClassifyIn):
                                   "article_id": req.article_id, "detail": str(e)})
 
 
-@app.get("/prompts/{name}")
-def get_prompt(name: str):
-    """실행 시작에 한 번만 가져간다. 기사마다 가져오면 실행 도중 파일이
-    바뀔 때 같은 배치가 서로 다른 프롬프트를 쓴다."""
-    try:
-        return prompts.load(name)
-    except KeyError as e:
-        raise HTTPException(404, {"error": "unknown_prompt", "detail": str(e)})
-    except SubjectMismatch as e:
-        # LLM 호출 전에 막는다. 어긋난 채로 돌면 82콜을 다 쓰고 전부 422 다
-        raise HTTPException(500, {"error": "prompt_subject_mismatch",
-                                  "detail": str(e)})
-    except (FileNotFoundError, OSError) as e:
-        raise HTTPException(500, {"error": "prompt_unavailable", "detail": str(e)})
-
-
-
+# ── 4단계 분석 ───────────────────────────────────────────────────────────
 @app.get("/articles/pending-analyze")
 def articles_pending_analyze(limit: int = Query(500, ge=1, le=500)):
     """4단계 분석 대상. 본문 전문을 보낸다 — 상한 없음(docs/4_analyze.md)."""
@@ -118,6 +124,7 @@ def post_analyze(req: AnalyzeIn):
                                   "article_id": req.article_id, "detail": str(e)})
 
 
+# ── 5~8단계 주간 배치 ────────────────────────────────────────────────────
 @app.post("/batches/start")
 def batches_start():
     """running 이 있으면 그걸 반환한다 — 같은 as_of 로 재실행하기 위해서다."""
@@ -158,3 +165,31 @@ def batches_abort(batch_id: int, req: AbortIn):
         raise HTTPException(409, {"error": "batch_state_conflict", "detail": str(e)})
     except batches.Invalid as e:
         raise HTTPException(422, {"error": "invalid_batch", "detail": str(e)})
+
+
+# ── 소재 조회·판정 (blogstudio 가 읽는 쪽) ────────────────────────────────
+@app.get("/topics")
+def get_topics(batch_id: int | None = None,
+               state: str | None = None,
+               limit: int = Query(100, ge=1, le=500),
+               offset: int = Query(0, ge=0)):
+    """소재 목록. batch_id 를 안 주면 소재가 있는 최신 done 배치.
+
+    rank 는 저장하지 않고 여기서 조립한다(#12) — 저장하면 하나를 제외할 때
+    나머지가 다 밀린다. **배치 전체 기준**이라 state 필터를 걸어도 순위가
+    안 바뀐다.
+    """
+    try:
+        return topics.list_topics(batch_id, state, limit, offset)
+    except topics.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_query", "detail": str(e)})
+
+
+@app.patch("/topics/{topic_id}")
+def patch_topic(topic_id: int, req: TopicPatchIn):
+    """판정 저장. articles 는 건드리지 않는다 — 되돌릴 경로가 없다."""
+    try:
+        return topics.patch_topic(topic_id, req.state, req.state_tags, req.state_note)
+    except topics.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_patch",
+                                  "topic_id": topic_id, "detail": str(e)})
