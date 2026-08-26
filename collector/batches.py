@@ -119,20 +119,39 @@ def candidates(batch_id: int) -> dict:
             if b is None:
                 c.execute("ROLLBACK")
                 raise Invalid(f"batch {batch_id} 가 없다")
-            if b["state"] != "running":
+            # 0건으로 닫힌 배치를 다시 조회하는 건 정상이다 — 스냅샷이
+            # 정본이라 결과가 같다. running 이 아니면서 스냅샷도 없는
+            # 경우만 막는다
+            if b["state"] != "running" and b["candidate_snapshot"] is None:
                 c.execute("ROLLBACK")
-                raise Conflict(f"batch {batch_id} 는 {b['state']} 다")
+                raise Conflict(f"batch {batch_id} 는 {b['state']} 인데 스냅샷이 없다")
 
             if b["candidate_snapshot"] is None:
                 snap = [dict(r) for r in c.execute(
                     CANDIDATES_SQL,
                     {"pv": pv, "as_of": b["as_of"], "wf": b["window_from"]})]
+                # 빈 스냅샷도 저장한다. NULL 은 "아직 확정 안 함",
+                # [] 는 "확정했는데 0건" — 구분 안 하면 재실행이 후보를
+                # 다시 계산해서 그 사이 들어온 기사가 끼어든다
                 c.execute("UPDATE batches SET candidate_snapshot=? WHERE id=?",
                           (json.dumps(snap, ensure_ascii=False), batch_id))
                 fresh = True
             else:
                 snap = json.loads(b["candidate_snapshot"])
                 fresh = False
+
+            # 후보 0건은 미완이 아니라 **정상적으로 할 일이 없는 배치**다.
+            # running 으로 두면 다음 주에 그걸 이어받아 창이 이번 as_of 로
+            # 고정된다 — 그 주 기사가 빠진다. aborted 는 "재현성을 포기하기로
+            # 사람이 결정했다"라 뜻이 안 맞는다(#124).
+            #
+            # 스냅샷 생성 분기 **밖에** 둔다. 이미 [] 가 저장된 배치를
+            # 다시 조회할 때도 닫혀야 하기 때문이다
+            if not snap and b["state"] == "running":
+                c.execute(
+                    "UPDATE batches SET state='done', n_articles=0,"
+                    " n_stale=0, n_issues=0, n_topics=0, finished_at=?"
+                    " WHERE id=?", (_now(), batch_id))
 
             groups = {}
             for s in snap:
@@ -174,6 +193,9 @@ def candidates(batch_id: int) -> dict:
         "window_from": b["window_from"],
         "window_to": b["window_to"],
         "snapshot_created": fresh,
+        # 0건이면 이 배치는 여기서 done 이다 — 워크플로가 complete 를
+        # 부를 필요가 없다
+        "batch_state": "done" if not snap else "running",
         "n_articles": len(snap),
         "n_subjects": len(out),
         # 판단이 존재하지 않는 자리는 LLM 에 맡기지 않는다.

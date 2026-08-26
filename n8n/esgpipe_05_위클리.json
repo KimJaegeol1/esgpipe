@@ -1,0 +1,126 @@
+{
+  "name": "esgpipe_05_위클리",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 4 * * MON"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -96,
+        -272
+      ],
+      "id": "14ce5705-f493-4d1b-9157-1b6a1e5372c3",
+      "name": "월요일 04:00 KST",
+      "notes": "tuning.yaml 의 window.batch_cron. 데일리(02:00)가 끝나고 2시간 뒤라 그날 아침 기사까지 분석된 상태로 배치가 돈다. 매일 돌면 월요일 아닌 날에도 배치가 시작되어 창이 매일 리셋된다"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -96,
+        -80
+      ],
+      "id": "b6ad8aad-e944-4d5b-af0e-00bed9d90c0d",
+      "name": "수동 실행"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "7rqjn6Ko1anrk9IA",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/7rqjn6Ko1anrk9IA",
+          "cachedResultName": "esgpipe_04_소재"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        176,
+        -176
+      ],
+      "id": "780dda00-2e3a-438d-a0a6-caac0733899a",
+      "name": "④ 소재",
+      "notes": "5~8단계는 하나의 재실행 단위다. running 배치가 있으면 같은 as_of 로 이어받는다"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 위클리 요약 — 주간 배치 결과를 한 건으로.\n// 하위가 \"완료 한 건\"을 반환하므로 여기서 읽으면 된다.\nconst stages = [];\ntry {\n  stages.push({ stage: 'topics', ...$('④ 소재').first().json });\n} catch (e) {\n  stages.push({ stage: 'topics', ok: false,\n                error: '결과를 못 읽었다: ' + String(e).slice(0, 120) });\n}\nreturn [{ json: {\n  ok: stages.every((s) => s.ok === true),\n  stages,\n  finished_at: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        -176
+      ],
+      "id": "c0c679e7-90fe-4705-b524-d641fab22539",
+      "name": "위클리 요약",
+      "notes": "어느 단계가 실패했는지 여기서 보인다"
+    }
+  ],
+  "connections": {
+    "월요일 04:00 KST": {
+      "main": [
+        [
+          {
+            "node": "④ 소재",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "수동 실행": {
+      "main": [
+        [
+          {
+            "node": "④ 소재",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "④ 소재": {
+      "main": [
+        [
+          {
+            "node": "위클리 요약",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600
+  },
+  "active": true
+}
