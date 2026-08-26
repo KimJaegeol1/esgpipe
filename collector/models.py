@@ -72,3 +72,22 @@ class ClassifyIn(BaseModel):
     # 불일치 로그가 경계표에 뭘 추가할지 알려주는 재료다
     subject_name: str | None = None
     reason: str | None = None
+
+
+class AnalyzeIn(BaseModel):
+    """4단계 분석 결과. 기사 한 건이 한 요청이다."""
+    article_id: int
+    # 분석 당시 subject. 조회 시점과 저장 시점 사이에 재분류됐으면
+    # 전제가 다르므로 collector 가 막는다
+    subject_id: int
+    state: Literal["done", "failed"]
+    summary: str | None = None
+    # 문자열 또는 null. null 은 무이슈라는 정상 출력이다 —
+    # 현재 사건에 연결되지 않는 evergreen 기사에 이슈를 강제하면
+    # 가짜 해설 클러스터가 생긴다
+    issue_signal: str | None = None
+    change_type: Literal["변화", "해설", "동향"] | None = None
+    error: str | None = None
+    attempts: int = Field(default=1, ge=1)
+    model: str | None = None
+    prompt_version: int = Field(ge=1)

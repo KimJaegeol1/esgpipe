@@ -55,3 +55,42 @@ def pending_classify(limit: int = 500) -> list[dict]:
     for r in rows:
         r["text_truncated"] = bool(r["text_truncated"])
     return rows
+
+
+# 4단계 분석 대상.
+# n.id IS NULL 이 셋을 동시에 잡는다 — 아직 안 했음 · 프롬프트 버전이
+# 올랐음 · **재분류로 subject 가 바뀌었음**. 마지막이 subject_id 를 조인
+# 조건에 넣은 이유다(#51). WHERE 에 넣으면 NULL 행이 걸러져 "아직 안 함"을
+# 못 잡는다.
+#
+# 본문은 전문을 보낸다. 상한을 두지 않는 이유는 docs/4_analyze.md 에 있다 —
+# 긴 본문이 실제로 문제인지 아직 모르고, 상한을 두면 첫 실험을 해석할 수 없다.
+PENDING_ANALYZE_SQL = """
+SELECT a.id, s.press, a.published_at, a.title, a.body, a.lang,
+       a.primary_subject_id AS subject_id, sub.name AS subject_name,
+       length(a.body) AS body_chars
+FROM articles a
+JOIN sources  s   ON s.id  = a.source_id
+JOIN subjects sub ON sub.id = a.primary_subject_id
+LEFT JOIN article_analysis n
+       ON n.article_id     = a.id
+      AND n.prompt_version = :v
+      AND n.subject_id     = a.primary_subject_id
+WHERE a.state = 'active'
+  AND a.primary_subject_id IS NOT NULL
+  AND a.body_state IN ('full','snippet_only')
+  AND (n.id IS NULL OR (n.state = 'failed' AND n.attempts < :maxtry))
+ORDER BY a.published_at DESC, a.id DESC
+LIMIT :limit
+"""
+
+
+def pending_analyze(limit: int = 500) -> list[dict]:
+    t = get_tuning()
+    with connect() as c:
+        rows = c.execute(PENDING_ANALYZE_SQL, {
+            "v": t["prompt_versions"]["analyze"],
+            "maxtry": t["validation"]["analysis_max_attempts"],
+            "limit": limit,
+        })
+        return [dict(r) for r in rows]

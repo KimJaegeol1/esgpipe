@@ -5,6 +5,7 @@ n8n 과 blogstudio 는 HTTP 로만 붙는다. 127.0.0.1 에만 바인딩하므�
 """
 from fastapi import FastAPI, HTTPException, Query
 
+import analyze
 import articles
 import classify
 import db
@@ -12,7 +13,7 @@ import ingest
 import prompts
 from prompt_validation import SubjectMismatch
 import sources
-from models import ClassifyIn, IngestIn
+from models import AnalyzeIn, ClassifyIn, IngestIn
 import config
 from config import get_settings, get_tuning
 
@@ -97,3 +98,20 @@ def get_prompt(name: str):
     except (FileNotFoundError, OSError) as e:
         raise HTTPException(500, {"error": "prompt_unavailable", "detail": str(e)})
 
+
+
+@app.get("/articles/pending-analyze")
+def articles_pending_analyze(limit: int = Query(500, ge=1, le=500)):
+    """4단계 분석 대상. 본문 전문을 보낸다 — 상한 없음(docs/4_analyze.md)."""
+    rows = articles.pending_analyze(limit)
+    return {"count": len(rows), "articles": rows}
+
+
+@app.post("/articles/analyze")
+def post_analyze(req: AnalyzeIn):
+    """분석 결과 저장. 옛 버전을 지우지 않고 행을 추가한다."""
+    try:
+        return analyze.handle(req)
+    except analyze.Invalid as e:
+        raise HTTPException(422, {"error": "invalid_analysis",
+                                  "article_id": req.article_id, "detail": str(e)})
