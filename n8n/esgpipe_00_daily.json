@@ -1,0 +1,177 @@
+{
+  "name": "esgpipe 00 데일리",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 2 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        8688,
+        2544
+      ],
+      "id": "5916471d-2568-43f9-908d-622cb96014e2",
+      "name": "매일 02:00 KST",
+      "notes": "tuning.yaml 의 window.collect_cron. 타임존은 Settings 의 Asia/Seoul 을 따른다. 이걸 켜는 순간 esgpipe 01 수집 의 기존 Schedule 을 꺼야 한다 — 안 그러면 중복 수집이다"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        8688,
+        2736
+      ],
+      "id": "186246dc-9b8c-4e00-8919-4bc6ba0a3d21",
+      "name": "수동 실행"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "cq6eBW9qIIniSqAR",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/cq6eBW9qIIniSqAR",
+          "cachedResultName": "esgpipe 01 수집"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        8960,
+        2640
+      ],
+      "id": "4486de30-07cd-40d3-8d38-a0d8b00136ad",
+      "name": "① 수집",
+      "notes": "드롭다운에서 esgpipe 01 수집를 고른다. Wait for Sub-Workflow Completion 이 켜져 있어야 수집이 끝난 뒤 분류가 시작된다"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "ZqFGbpglNWjIJ4wt",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/ZqFGbpglNWjIJ4wt",
+          "cachedResultName": "esgpipe 02 분류"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": true
+        },
+        "options": {
+          "waitForSubWorkflow": true
+        }
+      },
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        9200,
+        2640
+      ],
+      "id": "da65fc4a-93d0-4e0d-8d73-7403c1ecf84d",
+      "name": "② 분류",
+      "notes": "드롭다운에서 esgpipe 02 분류를 고른다"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 데일리 요약 — 하위 둘의 결과를 이어 붙인다.\n// 각 하위가 \"완료 한 건\"을 반환하므로 여기서 순서대로 읽으면 된다.\n// 실패를 조용히 버리지 않는다 — ok=false 인 단계가 있으면 전체가 실패다.\nconst stages = [];\nfor (const [label, node] of [['collect', '① 수집'], ['classify', '② 분류']]) {\n  try {\n    const j = $(node).first().json;\n    stages.push({ stage: label, ...j });\n  } catch (e) {\n    stages.push({ stage: label, ok: false, error: '결과를 못 읽었다: ' + String(e).slice(0, 120) });\n  }\n}\nreturn [{ json: {\n  ok: stages.every(s => s.ok === true),\n  stages,\n  finished_at: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        9440,
+        2640
+      ],
+      "id": "aed14eab-9697-4cb1-aafb-762d3336670b",
+      "name": "데일리 요약",
+      "notes": "하위 둘의 완료 결과를 한 건으로 모은다. 어느 단계가 실패했는지 여기서 보인다"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "매일 02:00 KST": {
+      "main": [
+        [
+          {
+            "node": "① 수집",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "수동 실행": {
+      "main": [
+        [
+          {
+            "node": "① 수집",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "① 수집": {
+      "main": [
+        [
+          {
+            "node": "② 분류",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "② 분류": {
+      "main": [
+        [
+          {
+            "node": "데일리 요약",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "timezone": "Asia/Seoul",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600
+  },
+  "versionId": "f206217b-15b0-454b-89f1-4a15370c24f1",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
+  },
+  "id": "ouf0d5AjD4G2zoY0",
+  "tags": []
+}

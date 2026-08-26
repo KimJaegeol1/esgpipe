@@ -1,15 +1,15 @@
 {
-  "name": "esgpipe · 분류",
+  "name": "esgpipe 02 분류",
   "nodes": [
     {
       "parameters": {},
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -208,
-        192
+        -1296,
+        304
       ],
-      "id": "b100-0001",
+      "id": "66c3ba2d-4019-498b-9ed3-b2948402ab48",
       "name": "수동 실행"
     },
     {
@@ -22,10 +22,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        16,
-        192
+        -1072,
+        304
       ],
-      "id": "b100-0002",
+      "id": "68206f45-b38f-45d2-ba98-b827ca98e6f6",
       "name": "GET prompt",
       "notes": "실행 시작에 한 번만. 기사마다 가져오면 실행 도중 파일이 바뀔 때 같은 배치가 서로 다른 프롬프트를 쓴다. gate.digest_tags 도 여기 실려 온다 — n8n 코드에 배열을 다시 쓰면 정본이 둘이 된다"
     },
@@ -48,10 +48,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        240,
-        192
+        -848,
+        304
       ],
-      "id": "b100-0003",
+      "id": "afc06d6a-fdcb-4431-a1e8-967576466490",
       "name": "GET pending",
       "notes": "조회 조건이 게이트 판정의 절반을 흡수한다 — not_active·no_body·이미 분류됨은 결과에 안 나온다"
     },
@@ -82,25 +82,24 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        464,
-        192
+        -624,
+        304
       ],
-      "id": "b100-0004",
+      "id": "7cee9008-76c6-4541-94f7-ecd555790cee",
       "name": "pending 있나",
       "notes": "0건이면 Split Out 에서 흐름이 끊겨 요약이 안 돈다"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "return [{ json: { __zero_pending: true } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        704,
-        480
+        -384,
+        592
       ],
-      "id": "b100-0005",
+      "id": "93e6afc4-f36e-450e-80a5-d50e2303eadf",
       "name": "pending 0건"
     },
     {
@@ -111,10 +110,10 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        704,
-        160
+        -384,
+        272
       ],
-      "id": "b100-0006",
+      "id": "e0718902-26dd-4a0b-adf5-a54eb32eb1ca",
       "name": "기사별로 분리"
     },
     {
@@ -125,10 +124,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        928,
-        160
+        -160,
+        272
       ],
-      "id": "b100-0007",
+      "id": "892ce61a-06e1-4e93-a672-2c54fd8f6b3c",
       "name": "게이트·렌더링"
     },
     {
@@ -158,10 +157,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1152,
-        160
+        64,
+        272
       ],
-      "id": "b100-0008",
+      "id": "0e6410fe-e8a7-46b5-a353-a40688fa9d9f",
       "name": "digest 인가",
       "notes": "AI 호출 전에 거른다. collector 로 보내봤자 이미 콜을 쓴 뒤다"
     },
@@ -177,15 +176,15 @@
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 3.1,
       "position": [
-        1392,
-        288
+        304,
+        400
       ],
-      "id": "b100-0009",
+      "id": "bdaf5d06-f9ae-40a8-8089-a2fcb98ff43e",
       "name": "분류 AI",
-      "onError": "continueRegularOutput",
       "retryOnFail": true,
       "maxTries": 2,
-      "waitBetweenTries": 3000
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
@@ -201,15 +200,15 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1392,
-        496
+        304,
+        608
       ],
-      "id": "b100-0010",
+      "id": "0366676f-d0aa-4d8c-b80e-9e658c74b648",
       "name": "분류 모델",
       "credentials": {
         "openAiApi": {
-          "id": "5SQWHj1m8sSthpGb",
-          "name": "OpenAI account"
+          "id": "dpCjrlShIqZCABuK",
+          "name": "OpenAi account"
         }
       }
     },
@@ -221,10 +220,10 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1552,
-        496
+        464,
+        608
       ],
-      "id": "b100-0011",
+      "id": "153e184b-2b06-4db9-8066-287ba6b6f416",
       "name": "분류 파서",
       "notes": "subject_id 에 minimum/maximum 을 두지 않는다 — 개수가 사는 곳이 하나 더 생긴다. 존재 검증은 collector 가 subjects 조회로 한다"
     },
@@ -236,10 +235,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1616,
-        288
+        528,
+        400
       ],
-      "id": "b100-0012",
+      "id": "a760ebfd-5e89-4592-bda7-a564123adc56",
       "name": "출력 검증"
     },
     {
@@ -270,10 +269,10 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        1840,
-        288
+        752,
+        400
       ],
-      "id": "b100-0013",
+      "id": "3c90e538-23b1-425c-8171-b33826f44307",
       "name": "검증 통과",
       "notes": "형식 검증에서 걸린 것(__skip)은 저장하지 않고 요약으로 바로 보낸다"
     },
@@ -291,10 +290,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        2064,
-        288
+        976,
+        400
       ],
-      "id": "b100-0014",
+      "id": "baf03f87-e7fe-4364-89a1-a05359926fdf",
       "name": "POST classify",
       "onError": "continueRegularOutput"
     },
@@ -312,26 +311,25 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1392,
-        32
+        304,
+        144
       ],
-      "id": "b100-0015",
+      "id": "1ec11662-68ef-4f2d-a7a9-839993fd3d0c",
       "name": "POST digest",
       "onError": "continueRegularOutput",
       "notes": "게이트 판정도 저장해야 한다. 안 하면 다음 조회에 또 나와 매 배치마다 같은 기사를 다시 걸러낸다"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 분류 요약 — 상위 워크플로(wf_daily)가 완료를 읽는 단일 지점\n// 실행 모드: Run Once for All Items\n//\n// pending 0건이면 「기사별로 분리」에서 흐름이 끊긴다. 앞에서 명시적으로\n// 분기해 이리로 보낸다 — 항상 정확히 한 건이 나와야 상위가 완료를 읽는다.\n//\n// 실패를 조용히 버리지 않는다. 형식 검증에서 걸린 것(__skip)과 collector 가\n// 거부한 것(422·409)을 따로 센다. 원인이 다른 것을 같은 신호로 만들지 않는다.\n//\n// **앞에 Merge 가 필요하다.** n8n 은 한 노드의 같은 입력에 여러 연결이\n// 들어오면 브랜치마다 한 번씩 실행한다. 네 갈래(pending 0건 · POST classify ·\n// POST digest · 검증 실패)를 바로 물리면 요약이 여러 번 나오고,\n// \"상위가 완료를 읽는 단일 지점\"이라는 전제가 깨진다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst items = $input.all().map(i => i.json || {});\nconst zero = items.find(j => j.__zero_pending === true);\nconst rows = items.filter(j => !j.__zero_pending);\n\nlet pending = 0;\ntry { pending = $('GET pending').first().json.count || 0; }\ncatch (e) { pending = zero ? 0 : rows.length; }\n\nconst count = (fn) => rows.filter(fn).length;\nconst tally = (fn, key) => {\n  const t = {};\n  for (const r of rows) if (fn(r)) { const k = r[key]; if (k) t[k] = (t[k] || 0) + 1; }\n  return t;\n};\n\n// collector 응답: result = applied | already_applied\n// 거부: detail.error = invalid_classification | result_conflict\nconst applied = count(r => r.result === 'applied');\nconst already = count(r => r.result === 'already_applied');\n// 판정 내역은 서로 겹치지 않게 센다. digest 응답도 result='applied' 라\n// applied 안에 포함된다 — mapped + mapping_failed + digest = applied\nconst digest  = count(r => r.state === 'excluded' && r.state_reason === 'digest');\nconst mapped  = count(r => r.primary_subject_id != null);\nconst failed  = count(r => r.state_reason === 'subject_mapping_failed');\n\nconst rejected = rows.filter(r => r.detail && r.detail.error);\nconst skipped  = rows.filter(r => r.__skip === true);\n\nreturn [{\n  json: {\n    stage: 'classify',\n    ok: rejected.length === 0 && skipped.length === 0,\n    pending_articles: pending,\n    processed: rows.length,\n    applied,\n    already_applied: already,\n    // 판정 내역\n    mapped,\n    mapping_failed: failed,\n    digest,\n    // 실패 — 원인별로 가른다\n    format_rejected: skipped.length,          // 형식 검증에서 걸림\n    collector_rejected: rejected.length,      // 422 · 409\n    format_reasons: (() => {\n      const t = {}; for (const r of skipped) { const k = r.reject || 'unknown'; t[k] = (t[k]||0)+1; } return t;\n    })(),\n    collector_reasons: (() => {\n      const t = {}; for (const r of rejected) { const k = r.detail.error; t[k] = (t[k]||0)+1; } return t;\n    })(),\n    // 모르는 【태그】 — 다음 튜닝 근거\n    unknown_tags: (() => {\n      const t = {};\n      try {\n        for (const it of $('게이트·렌더링').all()) {\n          const k = it.json.unknown_tag; if (k) t[k] = (t[k]||0)+1;\n        }\n      } catch (e) {}\n      return t;\n    })(),\n    finished_at: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n  },\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        2544,
-        192
+        1456,
+        304
       ],
-      "id": "b100-0016",
+      "id": "b0ee9a69-4cc6-4ab8-829f-562259e45a39",
       "name": "분류 요약",
       "notes": "상위 워크플로가 완료를 읽는 단일 지점. 항상 정확히 한 건"
     },
@@ -342,14 +340,29 @@
       "type": "n8n-nodes-base.merge",
       "typeVersion": 3,
       "position": [
-        2304,
-        192
+        1216,
+        304
       ],
-      "id": "b100-0017",
+      "id": "29bbd472-7716-42b6-9775-11b82b9b3a56",
       "name": "갈래 합치기",
       "notes": "n8n 은 한 노드의 같은 입력에 여러 연결이 들어오면 브랜치마다 한 번씩 실행한다. Merge 로 합치지 않으면 요약이 여러 번 나오고 상위가 완료를 못 읽는다"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -1296,
+        592
+      ],
+      "name": "상위에서 호출",
+      "id": "e548b46d-2268-425e-9d4c-d9ad6324c79b",
+      "notes": "esgpipe 00 데일리 가 Execute Workflow 로 부르는 입구. 수동 실행은 그대로 남는다 — 재실행 단위가 다르다는 게 워크플로를 나눈 이유다"
     }
   ],
+  "pinData": {},
   "connections": {
     "수동 실행": {
       "main": [
@@ -547,12 +560,33 @@
           }
         ]
       ]
+    },
+    "상위에서 호출": {
+      "main": [
+        [
+          {
+            "node": "GET prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
-    "timezone": "Asia/Seoul",
     "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
     "executionTimeout": 3600
   },
-  "pinData": {}
+  "versionId": "8f44fdcb-29ee-4372-8d32-8c660dce368a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
+  },
+  "id": "ZqFGbpglNWjIJ4wt",
+  "tags": []
 }

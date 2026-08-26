@@ -1,5 +1,5 @@
 {
-  "name": "esgpipe",
+  "name": "esgpipe 01 수집",
   "nodes": [
     {
       "parameters": {
@@ -15,11 +15,12 @@
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
       "position": [
-        -208,
-        96
+        -368,
+        896
       ],
-      "id": "a1000000-0000-4000-8000-000000000001",
+      "id": "9301d6c9-c797-4e03-85a9-8254aafd6072",
       "name": "매일 02:00 KST",
+      "disabled": true,
       "notes": "tuning.yaml 의 window.collect_cron. 타임존은 워크플로 Settings 의 Asia/Seoul 을 따른다"
     },
     {
@@ -27,10 +28,10 @@
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [
-        -208,
-        288
+        -368,
+        1088
       ],
-      "id": "a1000000-0000-4000-8000-000000000002",
+      "id": "f9f2de10-828f-4a01-be59-15cd0f814dd6",
       "name": "수동 실행"
     },
     {
@@ -43,10 +44,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        16,
-        192
+        -144,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000003",
+      "id": "b5f514fd-e623-4474-8d34-6fd3d32525e7",
       "name": "GET sources due",
       "notes": "collector 는 127.0.0.1 에만 바인딩돼 있다. n8n 이 같은 호스트의 프로세스라 loopback 을 공유한다"
     },
@@ -58,10 +59,10 @@
       "type": "n8n-nodes-base.splitOut",
       "typeVersion": 1,
       "position": [
-        480,
-        192
+        320,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000004",
+      "id": "e634d8e4-0f41-43a8-a456-dd8b047ca0b7",
       "name": "소스별로 분리",
       "notes": "sources 배열 → 아이템 하나씩. 뒤 노드가 $('소스별로 분리').item.json 으로 소스 정보를 되찾는다"
     },
@@ -103,10 +104,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        720,
-        192
+        560,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000005",
+      "id": "b777d056-1639-4a36-aa12-e218cef813b4",
       "name": "피드 가져오기",
       "retryOnFail": true,
       "maxTries": 2,
@@ -122,10 +123,10 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        960,
-        192
+        800,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000007",
+      "id": "ecd5e521-c0d2-4028-89b0-c410daa41407",
       "name": "정규화",
       "notes": "XML 파싱을 여기서 한다. n8n XML 노드를 쓰면 pairedItem 이 끊겨 $('소스별로 분리').item 이 소스를 못 찾는다 — 인덱스 우회는 오류 분기에서 어긋나고 하필 그때 가장 필요하다. 성공·오류 두 출력이 여기로 합류한다"
     },
@@ -143,10 +144,10 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        1200,
-        400
+        1040,
+        1200
       ],
-      "id": "a1000000-0000-4000-8000-000000000008",
+      "id": "2f66f6c3-fb24-48f7-8a01-a1b1f29e0634",
       "name": "POST ingest",
       "onError": "continueRegularOutput",
       "notes": "소스 하나당 한 번. 응답의 active_ids 가 다음 단계(분류)로 넘길 기사다 — excluded 는 넘기지 않는다"
@@ -178,43 +179,56 @@
       "type": "n8n-nodes-base.if",
       "typeVersion": 2.2,
       "position": [
-        240,
-        192
+        80,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000009",
+      "id": "01c03c66-79f7-48c4-89be-2bec5a5ee9b1",
       "name": "due 있나",
       "notes": "due 0건이면 「소스별로 분리」에서 흐름이 끊겨 뒤가 아예 안 돈다. Run Once for All Items 는 처리 모드지 빈 입력 실행 보장이 아니다 — 명시적으로 분기한다"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "// due 가 0건이라 수집을 아예 안 했다는 마커.\n// 요약 노드가 이걸 보고 processed_sources=0 으로 낸다\nreturn [{ json: { __zero_due: true } }];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        480,
-        400
+        320,
+        1200
       ],
-      "id": "a1000000-0000-4000-8000-000000000010",
+      "id": "6b0a93b6-7b90-4fb1-86af-3bbe730f8d0c",
       "name": "due 0건"
     },
     {
       "parameters": {
-        "mode": "runOnceForAllItems",
         "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 수집 요약 — 상위 워크플로(wf_daily)에 완료를 알리는 단일 지점\n//\n// 실행 모드: Run Once for All Items\n//\n// 이 노드가 있는 이유는 두 갈래가 한 곳으로 모여야 하기 때문이다.\n//   due 0건    → 「소스별로 분리」에서 흐름이 끊겨 뒤가 아예 안 돈다.\n//                그래서 앞에서 명시적으로 분기해 이리로 보낸다\n//   due 1건 이상 → 소스마다 POST ingest 응답이 하나씩, 최대 4개 아이템\n//\n// 상위가 \"완료\"를 읽으려면 항상 정확히 한 건이 나와야 한다.\n//\n// 실패를 조용히 버리지 않는다. POST ingest 가 onError=continueRegularOutput\n// 이라 실패해도 같은 출력으로 흐르는데, 그 아이템은 source_id 가 없고\n// error 가 있다. filter 로 걸러내면 실패한 소스가 요약에서 사라지고\n// 상위가 \"정상 완료\"로 읽는다 — empty_streak 을 원인별로 가른 것과 같은 계열이다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst items = $input.all().map(i => i.json || {});\n\n// due 0건 분기가 보낸 마커. 그쪽은 수집을 아예 안 했다\nconst zero = items.find(j => j.__zero_due === true);\n\nconst ok   = items.filter(j => j.source_id !== undefined && !j.__zero_due);\nconst bad  = items.filter(j => j.source_id === undefined && !j.__zero_due);\n\nconst sum = (k) => ok.reduce((s, r) => s + (Number(r[k]) || 0), 0);\n\n// due 개수는 GET 응답에서 직접 읽는다. 처리된 수로 역산하면\n// 중간에 사라진 소스를 못 본다\nlet dueSources = 0;\ntry {\n  dueSources = $('GET sources due').first().json.count || 0;\n} catch (e) {\n  dueSources = zero ? 0 : ok.length + bad.length;\n}\n\nconst failures = bad.map(j => ({\n  error: String((j.error && (j.error.message || j.error.description)) || j.error || 'unknown').slice(0, 200),\n}));\n\nreturn [{\n  json: {\n    stage: 'collect',\n    ok: bad.length === 0,\n    due_sources: dueSources,          // 원래 처리해야 했던 소스 수\n    processed_sources: ok.length,     // ingest 응답까지 돌아온 수\n    failed_sources: bad.length,       // fetch 또는 ingest 실패\n    received:   sum('received'),\n    inserted:   sum('inserted'),\n    active:     sum('active'),\n    excluded:   sum('excluded'),\n    duplicated: sum('duplicated'),\n    rejected:   sum('rejected'),\n    failures,\n    finished_at: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n  },\n}];\n"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1200,
-        192
+        1040,
+        992
       ],
-      "id": "a1000000-0000-4000-8000-000000000011",
+      "id": "ee895f6b-4bbc-40fa-85e2-1cf0082e49bb",
       "name": "수집 요약",
-      "notes": "상위 워크플로(wf_daily)가 완료를 읽는 단일 지점. 항상 정확히 한 건이 나온다"
+      "notes": "상위 워크플로(esgpipe 00 데일리)가 완료를 읽는 단일 지점. 항상 정확히 한 건이 나온다"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -368,
+        1280
+      ],
+      "name": "상위에서 호출",
+      "id": "cb04234f-5f6d-45da-a114-77980cbe38a0",
+      "notes": "esgpipe 00 데일리 가 Execute Workflow 로 부르는 입구. 수동 실행은 그대로 남는다 — 재실행 단위가 다르다는 게 워크플로를 나눈 이유다"
     }
   ],
+  "pinData": {},
   "connections": {
     "매일 02:00 KST": {
       "main": [
@@ -328,12 +342,33 @@
           }
         ]
       ]
+    },
+    "상위에서 호출": {
+      "main": [
+        [
+          {
+            "node": "GET sources due",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
+  "active": true,
   "settings": {
-    "timezone": "Asia/Seoul",
     "executionOrder": "v1",
-    "executionTimeout": 1800
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600
   },
-  "pinData": {}
+  "versionId": "b67e65f1-e24d-4f05-b667-dd61a10eb22a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
+  },
+  "id": "cq6eBW9qIIniSqAR",
+  "tags": []
 }
