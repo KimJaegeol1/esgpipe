@@ -7,7 +7,7 @@
       "typeVersion": 1,
       "position": [
         528,
-        320
+        316
       ],
       "id": "2afa8f8f-4193-4447-a0f1-b57d5c2c0664",
       "name": "수동 실행"
@@ -23,7 +23,7 @@
       "typeVersion": 4.2,
       "position": [
         752,
-        416
+        412
       ],
       "id": "510866f8-baa4-4f80-9181-040490688c00",
       "name": "GET prompt",
@@ -49,7 +49,7 @@
       "typeVersion": 4.2,
       "position": [
         976,
-        416
+        412
       ],
       "id": "519d74b2-9bda-4f96-8f27-4e7313fd6c39",
       "name": "GET pending",
@@ -83,7 +83,7 @@
       "typeVersion": 2.2,
       "position": [
         1200,
-        416
+        412
       ],
       "id": "42195559-daa1-40ae-98e7-8a6f25ed34f6",
       "name": "pending 있나",
@@ -97,7 +97,7 @@
       "typeVersion": 2,
       "position": [
         2672,
-        592
+        580
       ],
       "id": "11217ddc-5a8c-44ff-8db1-71b4fbaba515",
       "name": "pending 0건"
@@ -167,7 +167,7 @@
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1.3,
       "position": [
-        1888,
+        1880,
         512
       ],
       "id": "2fb38d59-7b0a-4ac5-9802-ce6e0f8c53d2",
@@ -187,7 +187,7 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        2016,
+        2008,
         512
       ],
       "id": "29700343-f2c4-46ce-b1df-6bd23abe6382",
@@ -258,7 +258,7 @@
       "typeVersion": 4.2,
       "position": [
         2672,
-        368
+        360
       ],
       "id": "bd62ca6a-1922-4b38-a14b-5f3ebcbc1c2d",
       "name": "POST analyze",
@@ -272,7 +272,7 @@
       "typeVersion": 2,
       "position": [
         3120,
-        368
+        360
       ],
       "id": "0f5a6e9f-a80d-47db-8ed2-4ac97acc2fd9",
       "name": "분석 요약",
@@ -286,7 +286,7 @@
       "typeVersion": 3,
       "position": [
         2896,
-        352
+        344
       ],
       "id": "c782c5d7-3bb2-4a09-9019-790e41d63ecf",
       "name": "갈래 합치기",
@@ -300,14 +300,13 @@
       "typeVersion": 1.1,
       "position": [
         528,
-        512
+        508
       ],
       "name": "상위에서 호출",
       "id": "42a91957-c070-47da-b0c0-03aff19d39af",
       "notes": "esgpipe 00 데일리 가 Execute Workflow 로 부르는 입구. 수동 실행은 그대로 남는다 — 재실행 단위가 다르다는 게 워크플로를 나눈 이유다"
     }
   ],
-  "pinData": {},
   "connections": {
     "수동 실행": {
       "main": [
@@ -489,7 +488,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -498,10 +496,5 @@
     "callerPolicy": "workflowsFromSameOwner",
     "executionTimeout": 3600
   },
-  "versionId": "2f79cfa6-6caa-4b48-8123-9ec56a8cfc74",
-  "meta": {
-    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
-  },
-  "id": "LF2zQBPTIw1bKBzA",
-  "tags": []
+  "active": true
 }

@@ -228,7 +228,6 @@
       "notes": "esgpipe 00 데일리 가 Execute Workflow 로 부르는 입구. 수동 실행은 그대로 남는다 — 재실행 단위가 다르다는 게 워크플로를 나눈 이유다"
     }
   ],
-  "pinData": {},
   "connections": {
     "매일 02:00 KST": {
       "main": [
@@ -355,7 +354,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -364,11 +362,5 @@
     "callerPolicy": "workflowsFromSameOwner",
     "executionTimeout": 3600
   },
-  "versionId": "b67e65f1-e24d-4f05-b667-dd61a10eb22a",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
-  },
-  "id": "cq6eBW9qIIniSqAR",
-  "tags": []
+  "active": true
 }

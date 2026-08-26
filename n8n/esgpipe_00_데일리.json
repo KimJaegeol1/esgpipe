@@ -141,7 +141,6 @@
       "notes": "4단계. ② 분류 다음이어야 한다 — 분류가 끝나야 subject 가 붙고, 그래야 분석 대상이 생긴다"
     }
   ],
-  "pinData": {},
   "connections": {
     "매일 02:00 KST": {
       "main": [
@@ -199,7 +198,6 @@
       ]
     }
   },
-  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
@@ -209,11 +207,5 @@
     "callerPolicy": "workflowsFromSameOwner",
     "executionTimeout": 3600
   },
-  "versionId": "fdc17ddd-29dc-4fe3-a404-1d924e814d1c",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "6cf8ab60db8d049c18995e3db030ee439516db2c2f40e5cd0282c7f02cd043b0"
-  },
-  "id": "ouf0d5AjD4G2zoY0",
-  "tags": []
+  "active": true
 }

@@ -1,0 +1,865 @@
+{
+  "name": "esgpipe_04_소재",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -704,
+        1820
+      ],
+      "id": "52012b3f-ec0a-4797-88b5-5da0ec93839c",
+      "name": "수동 실행"
+    },
+    {
+      "parameters": {
+        "inputSource": "passthrough"
+      },
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        -704,
+        2012
+      ],
+      "name": "상위에서 호출",
+      "id": "e9e23d2c-7a6f-4aca-928d-b0946ce41fd8"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://127.0.0.1:8787/batches/start",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({}) }}",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -480,
+        1916
+      ],
+      "id": "ce53a2f3-7a4d-4b71-9b45-6a6be721022f",
+      "name": "POST batch start",
+      "notes": "running 이 있으면 그걸 반환한다 — 같은 as_of 로 재실행하기 위해서다"
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8787/prompts/cluster",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -256,
+        1916
+      ],
+      "id": "0c81ce68-5c4f-49f1-a4bf-6f322550ebd5",
+      "name": "GET cluster prompt"
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:8787/prompts/compose",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32,
+        1916
+      ],
+      "id": "48737a06-ec65-40e4-97b4-7c5c2a19e6c8",
+      "name": "GET compose prompt"
+    },
+    {
+      "parameters": {
+        "url": "=http://127.0.0.1:8787/batches/{{ $('POST batch start').first().json.id }}/candidates",
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        192,
+        1916
+      ],
+      "id": "39e13dbe-16e2-4f61-8e6f-5cd283471247",
+      "name": "GET candidates",
+      "notes": "후보를 고정한다. 스냅샷이 있으면 재조회하지 않는다 — /complete 의 검증 기준값이라"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "c6747efe-fa09-4716-9a1a-dee670784673",
+              "leftValue": "={{ $json.n_articles }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        416,
+        1916
+      ],
+      "id": "5cfb84d9-79af-4075-9284-e4b7487dc3a6",
+      "name": "후보 있나"
+    },
+    {
+      "parameters": {
+        "jsCode": "// 후보가 0건이면 「subject 별로 분리」에서 흐름이 끊겨 요약이 안 돈다.\n// Run Once for All Items 는 처리 모드지 빈 입력 실행 보장이 아니다 —\n// 앞에서 명시적으로 분기해 이리로 보낸다.\nreturn [{ json: { __zero_candidates: true } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3584,
+        2112
+      ],
+      "id": "0909412b-320a-4c02-bc87-7e1f57da3df5",
+      "name": "후보 0건"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "subjects",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        640,
+        1844
+      ],
+      "id": "1a8ad00f-d02d-41ea-b3dc-18c4d413b41e",
+      "name": "subject 별로 분리"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "a555daf3-f551-4134-b9e7-24f3e3fe5a06",
+              "leftValue": "={{ $json.articles.length }}",
+              "rightValue": 2,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        864,
+        1844
+      ],
+      "id": "ada9fe72-0469-482b-94a0-ad50c79251a6",
+      "name": "n 이 2 이상인가"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 클러스터링 렌더링 — subject 하나가 한 콜\n// 실행 모드: Run Once for Each Item\n// 입력: 「subject 별로 분리」 (n >= 2 인 것만 여기로 온다)\n// ─────────────────────────────────────────────────────────────────────────\n\nconst P = $('GET cluster prompt').first().json;\n\n// 기사를 한 줄에 하나씩 JSON 으로. 프롬프트가 그 형식을 전제한다\nconst articlesJson = $json.articles.map((a) => JSON.stringify(a)).join('\\n');\n\nconst VALUES = {\n  SUBJECT_NAME: $json.subject_name ?? '',\n  N: String($json.articles.length),\n  ARTICLES_JSON: articlesJson,\n};\nconst TOKEN = /\\[\\[([A-Z_]+)\\]\\]/g;\n\nconst counts = {};\nfor (const t of P.user_template.matchAll(TOKEN)) counts[t[1]] = (counts[t[1]] || 0) + 1;\nfor (const k of Object.keys(VALUES)) {\n  if (counts[k] !== 1) throw new Error(`user_template 의 [[${k}]] 가 ${counts[k] || 0}번`);\n}\nconst unknown = Object.keys(counts).filter((k) => !(k in VALUES));\nif (unknown.length) throw new Error(`모르는 자리표시자: ${unknown.join(', ')}`);\n\n// 한 번의 정규식 치환. 순차 치환하면 본문에 다른 자리표시자 문자열이\n// 들어 있을 때 재치환된다\nconst userPrompt = P.user_template.replace(TOKEN, (w, k) => (k in VALUES ? VALUES[k] : w));\n\nreturn {\n  json: {\n    batch_id: $('POST batch start').first().json.id,\n    subject_id: $json.subject_id,\n    subject_name: $json.subject_name,\n    n: $json.articles.length,\n    aids: $json.articles.map((a) => a.aid),\n    system_prompt: P.system_prompt,\n    user_prompt: userPrompt,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1088,
+        1720
+      ],
+      "id": "5c45ebf3-8240-45c1-a35c-6ff4327ca7e2",
+      "name": "클러스터 렌더링"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// n = 1 subject — 코드가 singleton 이슈를 만든다\n// 실행 모드: Run Once for Each Item\n//\n// 근거는 비용이 아니라 층위다. 기사가 하나뿐이면 판단할 경우의 수가 없다 —\n// 결과는 반드시 singleton 하나다. **판단이 존재하지 않는 자리는 LLM 에\n// 맡기지 않는다.** \"셀 수 있는 건 코드가 센다\"의 연장이다.\n//\n// **새 의미를 만들어내지 않는다.** 한 기사밖에 없다는 사실 자체가 묶인\n// 이유라, 코드가 문장을 새로 짓거나 LLM 을 한 번 더 부를 이유가 없다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst a = $json.articles[0];\n\nreturn {\n  json: {\n    subject_id: $json.subject_id,\n    subject_name: $json.subject_name,\n    issue_signal: a.issue_signal,   // 기사 분석 결과 그대로\n    article_ids: [a.aid],\n    cluster_reason: a.summary,      // 그대로\n    source: 'code',\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        1968
+      ],
+      "id": "c4bcaefd-8ae3-44a0-95fb-6d742a18e491",
+      "name": "코드 singleton",
+      "notes": "판단이 존재하지 않는 자리는 LLM 에 맡기지 않는다. 새 의미를 만들지 않고 기사 분석 결과를 그대로 쓴다"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1312,
+        1720
+      ],
+      "id": "5bb1a37a-28f7-4c93-b2c4-57df1e320a49",
+      "name": "클러스터 AI",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-luna"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        1320,
+        1944
+      ],
+      "id": "e768ea2d-50f6-425b-af2f-4ea97445803d",
+      "name": "클러스터 모델",
+      "credentials": {
+        "openAiApi": {
+          "id": "dpCjrlShIqZCABuK",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"issues\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"object\",\n        \"properties\": {\n          \"issue_signal\": {\n            \"type\": \"string\"\n          },\n          \"article_ids\": {\n            \"type\": \"array\",\n            \"items\": {\n              \"type\": \"string\"\n            }\n          },\n          \"reason\": {\n            \"type\": \"string\"\n          }\n        },\n        \"required\": [\n          \"issue_signal\",\n          \"article_ids\",\n          \"reason\"\n        ],\n        \"additionalProperties\": false\n      }\n    }\n  },\n  \"required\": [\n    \"issues\"\n  ],\n  \"additionalProperties\": false\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1448,
+        1944
+      ],
+      "id": "7c36c37b-d09e-4ee1-93b5-dc8f5a850449",
+      "name": "클러스터 파서"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1888,
+        1844
+      ],
+      "id": "add85b76-ec68-491a-9427-72c9b58ffdab",
+      "name": "클러스터 합치기"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 클러스터링 출력 검증 — 이슈를 펼친다\n// 실행 모드: Run Once for All Items\n// 입력: 「클러스터 AI」 출력만 (코드 singleton 은 합치기 뒤에서 들어온다)\n//\n// **AI 노드 출력에는 subject_id 가 없다.** 에이전트가 아이템을 통째로\n// 갈아치우기 때문이다. 그래서 subject_id 로 원본을 찾으면 못 찾고, 모든\n// aid 가 unknown 이 되어 12개 subject 전부 partition_broken 이 났다.\n// 인덱스로 맞춘다 — 에이전트는 입력 하나당 출력 하나를 낸다.\n// 코드 singleton 을 먼저 합치면 순서가 섞여 인덱스도 못 쓴다.\n//\n// 완전 분할을 여기서 1차로 잡는다. 최종 판정은 collector 가\n// candidate_snapshot 기준으로 하지만, 소재 콜을 30번 더 쓰기 전에\n// 걸러내는 게 싸다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst src = $('클러스터 렌더링').all();\nconst out = [];\n\n$input.all().forEach((item, i) => {\n  const j = item.json;\n  const meta = (src[i] && src[i].json) || {};\n\n  if (meta.subject_id === undefined) {\n    out.push({ json: { __skip: true, reject: 'meta_lost',\n      detail: `인덱스 ${i} 의 렌더링 원본을 못 찾았다 (렌더 ${src.length}건 · AI ${$input.all().length}건)` }});\n    return;\n  }\n\n  if (j.error !== undefined) {\n    out.push({ json: { __skip: true, subject_id: meta.subject_id,\n      reject: 'agent_error',\n      detail: String((j.error && j.error.message) || j.error).slice(0, 200) }});\n    return;\n  }\n\n  const body = j.output ?? j;\n  const issues = body && body.issues;\n  if (!Array.isArray(issues) || issues.length === 0) {\n    out.push({ json: { __skip: true, subject_id: meta.subject_id,\n      reject: 'no_issues', detail: JSON.stringify(body).slice(0, 120) }});\n    return;\n  }\n\n  const expected = new Set(meta.aids || []);\n  const seen = new Set();\n  let bad = null;\n\n  for (const it of issues) {\n    const ids = it && it.article_ids;\n    if (!Array.isArray(ids) || ids.length === 0) { bad = 'empty_article_ids'; break; }\n    for (const aid of ids) {\n      // 없는 aid 를 지어내지 마라 — 프롬프트가 명시한다\n      if (!expected.has(aid)) { bad = `unknown_aid:${aid}`; break; }\n      if (seen.has(aid)) { bad = `duplicate_aid:${aid}`; break; }\n      seen.add(aid);\n    }\n    if (bad) break;\n    if (typeof it.issue_signal !== 'string' || !it.issue_signal.trim()) {\n      bad = 'empty_issue_signal'; break;\n    }\n  }\n  // 누락. 자동 보정하지 않는다 — 보정하면 LLM 이 완전 분할을 지켰는지\n  // 검증할 수 없고, 빠진 기사가 다른 기사와 묶여야 했던 건지\n  // singleton 이어야 했던 건지 코드는 알 수 없다\n  if (!bad && seen.size !== expected.size) {\n    bad = `missing_aids:${[...expected].filter((x) => !seen.has(x)).join(',')}`;\n  }\n\n  if (bad) {\n    out.push({ json: { __skip: true, subject_id: meta.subject_id,\n      reject: 'partition_broken', detail: bad }});\n    return;\n  }\n\n  for (const it of issues) {\n    out.push({ json: {\n      subject_id: meta.subject_id,\n      subject_name: meta.subject_name,\n      issue_signal: it.issue_signal.trim(),\n      article_ids: it.article_ids,\n      cluster_reason: (it.reason || '').trim() || null,\n      source: 'llm',\n    }});\n  }\n});\n\nreturn out;\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1664,
+        1720
+      ],
+      "id": "cd166e64-5da7-44fa-b0db-37ccb555e76b",
+      "name": "이슈 검증",
+      "notes": "AI 갈래에서만 돈다. 코드 singleton 을 먼저 합치면 순서가 섞여 인덱스로 원본을 못 찾는다"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "cae00c31-774b-470d-96af-c88212ae7eb4",
+              "leftValue": "={{ $json.__skip }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2112,
+        1844
+      ],
+      "id": "85ffa30a-15d8-4bc1-a1ba-edade5235727",
+      "name": "이슈 통과"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 소재 생성 렌더링 — 이슈 하나가 한 콜\n// 실행 모드: Run Once for Each Item\n//\n// 기사 수·매체 수를 **주지 않는다.** System Prompt 가 그 둘을 점수에\n// 반영하지 말라고 하는데 라벨까지 붙여 입력으로 주면 축이 침범된다(#37).\n//   business_relevance = 서비스 직접성\n//   hot_*              = 열도 (코드가 센다)\n// ─────────────────────────────────────────────────────────────────────────\n\nconst P = $('GET compose prompt').first().json;\n\n// 이슈에 속한 기사 본문값을 후보 응답에서 되찾는다\nconst cand = $('GET candidates').first().json;\nconst byAid = {};\nfor (const g of cand.subjects) for (const a of g.articles) byAid[a.aid] = a;\n\nconst articles = $json.article_ids.map((aid) => {\n  const a = byAid[aid] || {};\n  return { aid, press: a.press, published_at: a.published_at,\n           title: a.title, summary: a.summary };\n});\n\nconst VALUES = {\n  SUBJECT_NAME: $json.subject_name ?? '',\n  ISSUE_SIGNAL: $json.issue_signal ?? '',\n  CLUSTER_REASON: $json.cluster_reason ?? '',\n  ARTICLES_JSON: articles.map((a) => JSON.stringify(a)).join('\\n'),\n};\nconst TOKEN = /\\[\\[([A-Z_]+)\\]\\]/g;\n\nconst counts = {};\nfor (const t of P.user_template.matchAll(TOKEN)) counts[t[1]] = (counts[t[1]] || 0) + 1;\nfor (const k of Object.keys(VALUES)) {\n  if (counts[k] !== 1) throw new Error(`user_template 의 [[${k}]] 가 ${counts[k] || 0}번`);\n}\nconst unknown = Object.keys(counts).filter((k) => !(k in VALUES));\nif (unknown.length) throw new Error(`모르는 자리표시자: ${unknown.join(', ')}`);\n\nconst userPrompt = P.user_template.replace(TOKEN, (w, k) => (k in VALUES ? VALUES[k] : w));\n\nreturn {\n  json: {\n    subject_id: $json.subject_id,\n    subject_name: $json.subject_name,\n    issue_signal: $json.issue_signal,\n    article_ids: $json.article_ids,\n    cluster_reason: $json.cluster_reason,\n    cluster_source: $json.source,\n    system_prompt: P.system_prompt,\n    user_prompt: userPrompt,\n  },\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2336,
+        1720
+      ],
+      "id": "7457d77a-3087-42f0-a7ba-768888c0346d",
+      "name": "소재 렌더링"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.user_prompt }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "={{ $json.system_prompt }}"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        2560,
+        1728
+      ],
+      "id": "e84951a1-8b4d-40a8-aa69-5c6686106e41",
+      "name": "소재 AI",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5.6-luna",
+          "mode": "list",
+          "cachedResultName": "gpt-5.6-luna"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        2568,
+        1944
+      ],
+      "id": "4b9e3d71-4d5f-4840-adb6-62e89ee6515b",
+      "name": "소재 모델",
+      "credentials": {
+        "openAiApi": {
+          "id": "dpCjrlShIqZCABuK",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"title\": {\n      \"type\": \"string\"\n    },\n    \"summary\": {\n      \"type\": \"string\"\n    },\n    \"keywords\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      }\n    },\n    \"business_relevance\": {\n      \"type\": \"number\"\n    },\n    \"rationale\": {\n      \"type\": \"string\"\n    }\n  },\n  \"required\": [\n    \"title\",\n    \"summary\",\n    \"keywords\",\n    \"business_relevance\",\n    \"rationale\"\n  ],\n  \"additionalProperties\": false\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2696,
+        1944
+      ],
+      "id": "f079bf2c-d863-4c3b-b887-8d6d0f94b772",
+      "name": "소재 파서"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 소재 출력 검증 — /complete 요청 본문의 topic 하나로\n// 실행 모드: Run Once for Each Item\n//\n// 형식만 본다. 소속·중복·누락·subject 는 collector 가 candidate_snapshot\n// 기준으로 판정한다 — 여기서 흉내내면 기준이 둘이 된다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst src = $('소재 렌더링').item.json;\n\nconst base = {\n  subject_id: src.subject_id,\n  issue_signal: src.issue_signal,\n  article_ids: src.article_ids,\n  cluster_reason: src.cluster_reason,\n};\n\nfunction fail(reject, detail) {\n  return { json: { ...base, __skip: true, reject,\n                   detail: String(detail).slice(0, 150) }};\n}\n\nif ($json.error !== undefined) {\n  const e = $json.error;\n  return fail('agent_error', (e && (e.message || e.description)) || e);\n}\n\nconst out = $json.output ?? $json;\nif (out === null || typeof out !== 'object') return fail('not_an_object', typeof out);\n\nconst title = typeof out.title === 'string' ? out.title.trim() : '';\nconst summary = typeof out.summary === 'string' ? out.summary.trim() : '';\nconst rationale = typeof out.rationale === 'string' ? out.rationale.trim() : '';\nif (!title) return fail('empty_title', JSON.stringify(out).slice(0, 80));\nif (!summary) return fail('empty_summary', '');\nif (!rationale) return fail('empty_rationale', '');\n\nconst br = out.business_relevance;\nif (typeof br !== 'number' || !(br >= 0 && br <= 1)) {\n  return fail('business_relevance_out_of_range', br);\n}\n\n// 검색량 공급원이 없다. volume 을 지어내면 축이 침범된 것이다 —\n// keywords 는 문자열 배열만 받는다\nconst kw = Array.isArray(out.keywords)\n  ? out.keywords.filter((k) => typeof k === 'string' && k.trim())\n                .map((k) => k.trim())\n  : [];\n\nreturn { json: { ...base, title, summary, keywords: kw,\n                 business_relevance: br, rationale }};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2912,
+        1720
+      ],
+      "id": "de65b2bb-5dc3-4111-a8fb-9dd839592a56",
+      "name": "소재 검증"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// /complete 요청 본문 조립\n// 실행 모드: Run Once for All Items\n//\n// 전부 아니면 전무다. 형식 검증에서 하나라도 걸리면 **보내지 않는다** —\n// 보내봤자 collector 가 누락으로 422 를 낼 뿐이고, 그러면 원인이\n// \"형식 실패\"인지 \"LLM 이 기사를 빠뜨림\"인지 섞인다.\n// ─────────────────────────────────────────────────────────────────────────\n\nconst items = $input.all().map((i) => i.json || {});\nconst skipped = items.filter((j) => j.__skip === true);\nconst topics = items.filter((j) => !j.__skip);\n\nconst batchId = $('POST batch start').first().json.id;\n\nif (skipped.length) {\n  const t = {};\n  for (const s of skipped) { const k = s.reject || 'unknown'; t[k] = (t[k] || 0) + 1; }\n  return [{ json: { __abort: true, batch_id: batchId,\n    reason: 'compose_validation_failed',\n    skipped: skipped.length, reasons: t,\n    samples: skipped.slice(0, 5).map((s) => ({\n      issue_signal: s.issue_signal, reject: s.reject, detail: s.detail })) }}];\n}\n\nreturn [{ json: { batch_id: batchId, topics } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3136,
+        1720
+      ],
+      "id": "9115ec73-fe0f-48fa-be9a-2ade4223f57b",
+      "name": "complete 조립",
+      "notes": "형식 검증에서 하나라도 걸리면 보내지 않는다 — 보내봤자 누락으로 422 고 원인이 섞인다"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "048f7b6e-8c7c-43c1-bdee-4fb518198b6f",
+              "leftValue": "={{ $json.__abort }}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        3360,
+        1720
+      ],
+      "id": "4b3521f7-3c95-4126-8114-b19013010e48",
+      "name": "보낼 수 있나"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://127.0.0.1:8787/batches/{{ $('POST batch start').first().json.id }}/complete",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({topics: $json.topics}) }}",
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3584,
+        1648
+      ],
+      "id": "5a3d53cf-a129-475f-8eda-5ad0747be9e8",
+      "name": "POST complete",
+      "onError": "continueRegularOutput",
+      "notes": "전부 아니면 전무. 검증 5종을 통과해야 한 트랜잭션으로 커밋한다"
+    },
+    {
+      "parameters": {
+        "numberInputs": 3
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        3808,
+        1904
+      ],
+      "id": "a739aee3-8397-430c-91e2-c8d6fa278d7e",
+      "name": "결과 합치기"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ─────────────────────────────────────────────────────────────────────────\n// 배치 요약 — 상위 워크플로가 완료를 읽는 단일 지점\n// 실행 모드: Run Once for All Items\n// ─────────────────────────────────────────────────────────────────────────\n\nconst items = $input.all().map((i) => i.json || {});\nconst zero = items.find((j) => j.__zero_candidates === true);\nconst abort = items.find((j) => j.__abort === true);\nconst done = items.find((j) => j.ok === true || j.n_topics !== undefined);\nconst err = items.find((j) => j.error !== undefined || (j.detail && j.detail.error));\n\nlet clusterSkipped = 0, clusterReasons = {}, nIssues = 0, nCode = 0;\ntry {\n  for (const it of $('이슈 검증').all()) {\n    const j = it.json;\n    if (j.__skip) { clusterSkipped++; const k = j.reject || 'unknown';\n                    clusterReasons[k] = (clusterReasons[k] || 0) + 1; }\n    else { nIssues++; if (j.source === 'code') nCode++; }\n  }\n} catch (e) {}\n\nlet cand = {};\ntry {\n  const c = $('GET candidates').first().json;\n  cand = { n_articles: c.n_articles, n_subjects: c.n_subjects,\n           n_llm_calls: c.n_llm_calls };\n} catch (e) {}\n\nconst base = {\n  stage: 'topics',\n  batch_id: (() => { try { return $('POST batch start').first().json.id; }\n                    catch (e) { return null; } })(),\n  candidates: cand,\n  n_issues: nIssues,\n  n_issues_from_code: nCode,          // n=1 subject. 판단 없는 자리는 코드가\n  cluster_skipped: clusterSkipped,\n  cluster_reasons: clusterReasons,\n  finished_at: new Date().toISOString().replace(/\\.\\d{3}Z$/, 'Z'),\n};\n\nif (zero) return [{ json: { ...base, ok: true, reason: 'no_candidates' } }];\n\nif (abort) {\n  return [{ json: { ...base, ok: false, reason: abort.reason,\n    compose_skipped: abort.skipped, compose_reasons: abort.reasons,\n    samples: abort.samples } }];\n}\n\nif (done && done.ok) {\n  return [{ json: { ...base, ok: clusterSkipped === 0,\n    n_topics: done.n_topics, n_consumed: done.n_articles,\n    n_stale: done.n_stale, batch_state: done.state } }];\n}\n\n// collector 가 422 로 거부한 경우\nconst d = (err && (err.detail || err)) || {};\nreturn [{ json: { ...base, ok: false,\n  reason: d.reason || d.error || 'complete_failed',\n  rejected: (d.rejected || []).slice(0, 20) } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4032,
+        1920
+      ],
+      "id": "a06cdff2-08e2-4953-9349-c835d84d47e3",
+      "name": "배치 요약",
+      "notes": "상위 워크플로가 완료를 읽는 단일 지점. 항상 정확히 한 건"
+    }
+  ],
+  "connections": {
+    "수동 실행": {
+      "main": [
+        [
+          {
+            "node": "POST batch start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "상위에서 호출": {
+      "main": [
+        [
+          {
+            "node": "POST batch start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST batch start": {
+      "main": [
+        [
+          {
+            "node": "GET cluster prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET cluster prompt": {
+      "main": [
+        [
+          {
+            "node": "GET compose prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET compose prompt": {
+      "main": [
+        [
+          {
+            "node": "GET candidates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GET candidates": {
+      "main": [
+        [
+          {
+            "node": "후보 있나",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "후보 있나": {
+      "main": [
+        [
+          {
+            "node": "subject 별로 분리",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "후보 0건",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "후보 0건": {
+      "main": [
+        [
+          {
+            "node": "결과 합치기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "subject 별로 분리": {
+      "main": [
+        [
+          {
+            "node": "n 이 2 이상인가",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "n 이 2 이상인가": {
+      "main": [
+        [
+          {
+            "node": "클러스터 렌더링",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "코드 singleton",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "클러스터 렌더링": {
+      "main": [
+        [
+          {
+            "node": "클러스터 AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "클러스터 AI": {
+      "main": [
+        [
+          {
+            "node": "이슈 검증",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "코드 singleton": {
+      "main": [
+        [
+          {
+            "node": "클러스터 합치기",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "클러스터 모델": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "클러스터 AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "클러스터 파서": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "클러스터 AI",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "클러스터 합치기": {
+      "main": [
+        [
+          {
+            "node": "이슈 통과",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이슈 검증": {
+      "main": [
+        [
+          {
+            "node": "클러스터 합치기",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "이슈 통과": {
+      "main": [
+        [
+          {
+            "node": "소재 렌더링",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "결과 합치기",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "소재 렌더링": {
+      "main": [
+        [
+          {
+            "node": "소재 AI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "소재 AI": {
+      "main": [
+        [
+          {
+            "node": "소재 검증",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "소재 모델": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "소재 AI",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "소재 파서": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "소재 AI",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "소재 검증": {
+      "main": [
+        [
+          {
+            "node": "complete 조립",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "complete 조립": {
+      "main": [
+        [
+          {
+            "node": "보낼 수 있나",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "보낼 수 있나": {
+      "main": [
+        [
+          {
+            "node": "POST complete",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "결과 합치기",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "POST complete": {
+      "main": [
+        [
+          {
+            "node": "결과 합치기",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "결과 합치기": {
+      "main": [
+        [
+          {
+            "node": "배치 요약",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 3600
+  },
+  "active": true
+}
