@@ -44,6 +44,14 @@ def health():
             "batch_cron": t["window"]["batch_cron"],
             "prompt_versions": t["prompt_versions"],
         },
+        # 판정 태그 어휘. **blogstudio 가 화면에 그릴 칩이 여기서 온다.**
+        # 안 내보내면 저쪽이 같은 목록을 하드코딩하고, 어긋나는 순간
+        # PATCH 가 전건 422 인데 화면에는 아무 표시도 안 난다.
+        # 키는 영문 스네이크, label 은 표시용이다.
+        "topic_reject_tags": [
+            {"key": k, "label": v["label"]}
+            for k, v in (t.get("topic_reject_tags") or {}).items()
+        ],
     }
 
 
